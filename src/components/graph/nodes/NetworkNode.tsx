@@ -5,6 +5,7 @@ interface NetworkNodeData {
   label: string;
   shortId: string;
   isAnimating?: boolean;
+  messageCount?: number;
 }
 
 const FILL = "#059669";
@@ -13,7 +14,7 @@ const SVG_SIZE = R * 2 + 8;
 const HALF = SVG_SIZE / 2;
 
 function NetworkNode({ data }: NodeProps) {
-  const { label, shortId, isAnimating } = data as unknown as NetworkNodeData;
+  const { label, shortId, isAnimating, messageCount = 0 } = data as unknown as NetworkNodeData;
 
   return (
     <div style={{ position: "relative" }}>
@@ -45,6 +46,20 @@ function NetworkNode({ data }: NodeProps) {
           fontWeight="700"
         >
           {shortId}
+        </text>
+
+        {/* Message count badge */}
+        <circle cx={R - 6} cy={-(R - 6)} r={9} fill="#1E293B" stroke="white" strokeWidth={1.5} />
+        <text
+          x={R - 6}
+          y={-(R - 6)}
+          fill="white"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="9"
+          fontWeight="700"
+        >
+          {messageCount}
         </text>
 
         {/* Name label */}

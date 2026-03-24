@@ -5,6 +5,7 @@ interface ClientPatientNodeData {
   label: string;
   shortId: string;
   isAnimating?: boolean;
+  messageCount?: number;
 }
 
 const FILL = "#0EA5E9";
@@ -13,7 +14,7 @@ const H = 36;
 const RX = 6;
 
 function ClientPatientNode({ data }: NodeProps) {
-  const { label, shortId, isAnimating } =
+  const { label, shortId, isAnimating, messageCount = 0 } =
     data as unknown as ClientPatientNodeData;
 
   return (
@@ -62,6 +63,20 @@ function ClientPatientNode({ data }: NodeProps) {
           fontWeight="700"
         >
           {shortId}
+        </text>
+
+        {/* Message count badge */}
+        <circle cx={W / 2 - 2} cy={-(H / 2 - 2)} r={9} fill="#1E293B" stroke="white" strokeWidth={1.5} />
+        <text
+          x={W / 2 - 2}
+          y={-(H / 2 - 2)}
+          fill="white"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="9"
+          fontWeight="700"
+        >
+          {messageCount}
         </text>
 
         {/* Name label */}

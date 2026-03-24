@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Play,
   Pause,
@@ -9,6 +9,7 @@ import {
   Plus,
   ChevronDown,
   ChevronRight,
+  Repeat,
 } from 'lucide-react';
 import { useGraphStore } from '../../stores/graphStore';
 import { useSimulationStore } from '../../stores/simulationStore';
@@ -81,6 +82,8 @@ export default function ControlsPanel() {
   const approach = useSimulationStore((s) => s.approach);
   const speed = useSimulationStore((s) => s.speed);
   const isPlaying = useSimulationStore((s) => s.isPlaying);
+  const pendingHops = useSimulationStore((s) => s.pendingHops);
+  const compare = useSimulationStore((s) => s.compare);
   const setApproach = useSimulationStore((s) => s.setApproach);
   const setSpeed = useSimulationStore((s) => s.setSpeed);
   const setPlaying = useSimulationStore((s) => s.setPlaying);
@@ -90,14 +93,18 @@ export default function ControlsPanel() {
   const removeAnimatingEdge = useSimulationStore((s) => s.removeAnimatingEdge);
   const addAnimatingNode = useSimulationStore((s) => s.addAnimatingNode);
   const removeAnimatingNode = useSimulationStore((s) => s.removeAnimatingNode);
+  const setCompare = useSimulationStore((s) => s.setCompare);
   const simulationReset = useSimulationStore((s) => s.reset);
 
   const addEntries = useEventLogStore((s) => s.addEntries);
+  const incrementMessageCounts = useSimulationStore((s) => s.incrementMessageCounts);
+  const resetMessageCounts = useSimulationStore((s) => s.resetMessageCounts);
 
   const [addForm, setAddForm] = useState<AddActorForm | null>(null);
   const [hoveredActorId, setHoveredActorId] = useState<string | null>(null);
   const [eventSource, setEventSource] = useState<string>('');
   const [networkTarget, setNetworkTarget] = useState<string>('');
+  const compareAbortRef = useRef(false);
 
   const actorList = useMemo(() => Array.from(actors.values()), [actors]);
   const networks = useMemo(() => actorList.filter((a) => a.type === 'network'), [actorList]);
@@ -145,11 +152,15 @@ export default function ControlsPanel() {
       }
 
       for (const group of groups) {
+        // Collect unique actor IDs involved in this group
+        const involvedActors: string[] = [];
         for (const hop of group) {
+          involvedActors.push(hop.fromId, hop.toId);
           const edgeId = findEdgeId(hop.fromId, hop.toId);
           if (edgeId) addAnimatingEdge(edgeId);
           addAnimatingNode(hop.toId);
         }
+        incrementMessageCounts(involvedActors);
 
         await new Promise((resolve) => setTimeout(resolve, hopDuration));
 
@@ -167,13 +178,11 @@ export default function ControlsPanel() {
 
       setPlaying(false);
     },
-    [findEdgeId, addAnimatingEdge, removeAnimatingEdge, addAnimatingNode, removeAnimatingNode, setPlaying],
+    [findEdgeId, addAnimatingEdge, removeAnimatingEdge, addAnimatingNode, removeAnimatingNode, setPlaying, incrementMessageCounts],
   );
 
-  const triggerEvent = useCallback(
-    (eventType: EventType, sourceId: string, targetId?: string) => {
-      if (isPlaying) return;
-
+  const triggerEventForApproach = useCallback(
+    async (eventType: EventType, sourceId: string, forApproach: 'routed' | 'direct', targetId?: string) => {
       const graph = { actors, edges };
       const event = {
         id: `evt-${Date.now()}`,
@@ -183,8 +192,11 @@ export default function ControlsPanel() {
         timestamp: Date.now(),
       };
 
+      // Reset message counts at the start of each workflow
+      resetMessageCounts();
+
       const hops =
-        approach === 'routed'
+        forApproach === 'routed'
           ? computeRoutedFlow(event, graph)
           : computeDirectFlow(event, graph, Array.from(directChannels.values()));
 
@@ -193,7 +205,7 @@ export default function ControlsPanel() {
         eventId: event.id,
         timestamp: hop.timestamp,
         eventType: event.type,
-        approach,
+        approach: forApproach,
         step: hop.step,
         from: {
           id: hop.fromId,
@@ -215,17 +227,22 @@ export default function ControlsPanel() {
       setActiveHops(hops);
       setPendingHops([...hops]);
 
-      if (approach === 'direct') {
+      if (forApproach === 'direct') {
         const newChannels = getNewDirectChannels(event, graph);
         newChannels.forEach((ch) => addDirectChannel(ch));
       }
 
-      runAnimation(hops);
+      await runAnimation(hops);
     },
-    [
-      isPlaying, actors, edges, directChannels, approach,
-      addEntries, setActiveHops, setPendingHops, addDirectChannel, runAnimation,
-    ],
+    [actors, edges, directChannels, addEntries, setActiveHops, setPendingHops, addDirectChannel, runAnimation, resetMessageCounts],
+  );
+
+  const triggerEvent = useCallback(
+    (eventType: EventType, sourceId: string, targetId?: string) => {
+      if (isPlaying) return;
+      triggerEventForApproach(eventType, sourceId, approach, targetId);
+    },
+    [isPlaying, approach, triggerEventForApproach],
   );
 
   const handleAddActorSubmit = useCallback(() => {
@@ -249,6 +266,78 @@ export default function ControlsPanel() {
   const needsNetwork = addForm
     ? ['client-patient', 'client-delegated', 'provider'].includes(addForm.type)
     : false;
+
+  const startCompareLoop = useCallback(() => {
+    if (!eventSource) return;
+    const sourceActor = actors.get(eventSource);
+    if (!sourceActor) return;
+
+    // Determine which event type to use based on actor type
+    let eventType: EventType;
+    if (sourceActor.type === 'provider') {
+      eventType = 'encounter-update';
+    } else if (sourceActor.type === 'client-patient' || sourceActor.type === 'client-delegated') {
+      eventType = 'new-client-registration';
+    } else if (sourceActor.type === 'network') {
+      if (!networkTarget) return;
+      eventType = 'new-network-peer';
+    } else {
+      return;
+    }
+
+    compareAbortRef.current = false;
+    setCompare({
+      active: true,
+      eventType,
+      sourceId: eventSource,
+      targetId: sourceActor.type === 'network' ? networkTarget : undefined,
+      currentApproach: 'routed',
+    });
+    setApproach('routed');
+  }, [eventSource, networkTarget, actors, setCompare, setApproach]);
+
+  const stopCompareLoop = useCallback(() => {
+    compareAbortRef.current = true;
+    setCompare({ active: false });
+    setPlaying(false);
+  }, [setCompare, setPlaying]);
+
+  // Run the compare loop when active
+  useEffect(() => {
+    if (!compare.active || !compare.eventType || !compare.sourceId) return;
+    if (isPlaying) return; // wait for current animation to finish
+
+    // If aborted, bail out
+    if (compareAbortRef.current) return;
+
+    const currentApproach = compare.currentApproach;
+    const pauseMs = 1500 / useSimulationStore.getState().speed;
+
+    const timer = setTimeout(async () => {
+      if (compareAbortRef.current || !useSimulationStore.getState().compare.active) return;
+
+      setApproach(currentApproach);
+      setCompare({ currentApproach });
+
+      await triggerEventForApproach(
+        compare.eventType!,
+        compare.sourceId,
+        currentApproach,
+        compare.targetId,
+      );
+
+      // After animation completes, flip approach for next iteration
+      if (!compareAbortRef.current && useSimulationStore.getState().compare.active) {
+        const nextApproach = currentApproach === 'routed' ? 'direct' : 'routed';
+        setCompare({ currentApproach: nextApproach });
+      }
+    }, pauseMs);
+
+    return () => clearTimeout(timer);
+  }, [compare.active, compare.eventType, compare.sourceId, compare.targetId, compare.currentApproach, isPlaying, setApproach, setCompare, triggerEventForApproach]);
+
+  const hasSource = !!eventSource && !!actors.get(eventSource);
+  const canCompare = hasSource && (actors.get(eventSource)?.type !== 'network' || !!networkTarget);
 
   return (
     <div
@@ -486,7 +575,7 @@ export default function ControlsPanel() {
         <div className="space-y-2">
           <div className="flex items-center justify-center gap-2">
             <button
-              onClick={() => simulationReset()}
+              onClick={() => { stopCompareLoop(); simulationReset(); }}
               className="p-1.5 rounded hover:bg-[var(--color-surface-alt)] text-[var(--color-text-secondary)]
                 transition-colors"
               title="Reset"
@@ -494,9 +583,13 @@ export default function ControlsPanel() {
               <SkipBack size={14} />
             </button>
             <button
+              disabled={pendingHops.length === 0 && !isPlaying}
               onClick={() => setPlaying(!isPlaying)}
-              className="p-2 rounded-full bg-[var(--color-brand)] text-white hover:bg-[var(--color-brand-dark)]
-                transition-colors"
+              className={`p-2 rounded-full transition-colors ${
+                pendingHops.length === 0 && !isPlaying
+                  ? 'bg-[var(--color-border)] text-[var(--color-text-tertiary)] cursor-not-allowed'
+                  : 'bg-[var(--color-brand)] text-white hover:bg-[var(--color-brand-dark)]'
+              }`}
               title={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying ? <Pause size={14} /> : <Play size={14} />}
@@ -508,6 +601,35 @@ export default function ControlsPanel() {
             >
               <SkipForward size={14} />
             </button>
+          </div>
+
+          {/* Compare loop toggle */}
+          <div className="pt-1 border-t border-[var(--color-border)]">
+            <button
+              disabled={!canCompare && !compare.active}
+              onClick={() => compare.active ? stopCompareLoop() : startCompareLoop()}
+              className={`w-full flex items-center justify-center gap-1.5 text-xs px-2 py-1.5 rounded
+                border transition-colors ${
+                compare.active
+                  ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] hover:bg-[var(--color-brand-dark)]'
+                  : !canCompare
+                    ? 'border-[var(--color-border)] text-[var(--color-text-tertiary)] bg-[var(--color-surface-alt)] cursor-not-allowed opacity-50'
+                    : 'border-[var(--color-border)] text-[var(--color-text-secondary)] bg-[var(--color-surface-alt)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]'
+              }`}
+            >
+              <Repeat size={12} />
+              {compare.active ? 'Stop Compare' : 'Compare Loop'}
+            </button>
+            {compare.active && (
+              <div className="mt-1 text-[10px] text-center text-[var(--color-text-tertiary)]">
+                Showing: <span className="font-semibold text-[var(--color-brand)]">{compare.currentApproach}</span>
+              </div>
+            )}
+            {!compare.active && (
+              <div className="mt-1 text-[10px] text-center text-[var(--color-text-tertiary)]">
+                {canCompare ? 'Auto-loop between Routed & Direct' : 'Select a source actor first'}
+              </div>
+            )}
           </div>
 
           <div>

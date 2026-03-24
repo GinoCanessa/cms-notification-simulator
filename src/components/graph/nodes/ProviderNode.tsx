@@ -5,13 +5,14 @@ interface ProviderNodeData {
   label: string;
   shortId: string;
   isAnimating?: boolean;
+  messageCount?: number;
 }
 
 const FILL = "#DC2626";
 const SIZE = 40;
 
 function ProviderNode({ data }: NodeProps) {
-  const { label, shortId, isAnimating } = data as unknown as ProviderNodeData;
+  const { label, shortId, isAnimating, messageCount = 0 } = data as unknown as ProviderNodeData;
 
   return (
     <div style={{ position: "relative" }}>
@@ -51,6 +52,20 @@ function ProviderNode({ data }: NodeProps) {
           fontWeight="700"
         >
           {shortId}
+        </text>
+
+        {/* Message count badge */}
+        <circle cx={SIZE - 12} cy={-SIZE + 12} r={9} fill="#1E293B" stroke="white" strokeWidth={1.5} />
+        <text
+          x={SIZE - 12}
+          y={-SIZE + 12}
+          fill="white"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="9"
+          fontWeight="700"
+        >
+          {messageCount}
         </text>
 
         {/* Name label */}

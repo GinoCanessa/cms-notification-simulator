@@ -55,7 +55,7 @@ export function computeDirectFlow(
     case 'new-care-relationship': {
       // Discovery flows through trust graph (same as routed)
       const routedHops = computeRoutedFlow(event, graph);
-      // Then establish direct channels with reached clients
+      // Client receives notification and requests a direct channel from the provider
       const paths = findReachableClients(event.sourceActorId, graph);
       let step = routedHops.length > 0 ? routedHops[routedHops.length - 1].step + 1 : 1;
       let ts = routedHops.length > 0 ? routedHops[routedHops.length - 1].timestamp + 500 : 0;
@@ -64,9 +64,6 @@ export function computeDirectFlow(
       for (const path of paths) {
         const clientId = path.actorIds[path.actorIds.length - 1];
         routedHops.push(makeDirectHop(event.id, step, clientId, event.sourceActorId, 'direct-channel-handshake', ts, handshakeGroup));
-        step++;
-        ts += 300;
-        routedHops.push(makeDirectHop(event.id, step, event.sourceActorId, clientId, 'direct-channel-confirm', ts, handshakeGroup + 50));
         step++;
         ts += 300;
       }
@@ -94,6 +91,7 @@ export function computeDirectFlow(
 
     case 'new-provider-registration': {
       const routedHops = computeRoutedFlow(event, graph);
+      // Client receives notification and requests a direct channel from the provider
       const paths = findReachableClients(event.sourceActorId, graph);
       let step = routedHops.length > 0 ? routedHops[routedHops.length - 1].step + 1 : 1;
       let ts = routedHops.length > 0 ? routedHops[routedHops.length - 1].timestamp + 500 : 0;
@@ -102,9 +100,6 @@ export function computeDirectFlow(
       for (const path of paths) {
         const clientId = path.actorIds[path.actorIds.length - 1];
         routedHops.push(makeDirectHop(event.id, step, clientId, event.sourceActorId, 'direct-channel-handshake', ts, handshakeGroup));
-        step++;
-        ts += 300;
-        routedHops.push(makeDirectHop(event.id, step, event.sourceActorId, clientId, 'direct-channel-confirm', ts, handshakeGroup + 50));
         step++;
         ts += 300;
       }

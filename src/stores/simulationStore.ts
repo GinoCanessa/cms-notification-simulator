@@ -1,5 +1,13 @@
 import { create } from 'zustand';
-import type { NotificationHop } from '../types';
+import type { EventType, NotificationHop } from '../types';
+
+interface CompareState {
+  active: boolean;
+  eventType: EventType | null;
+  sourceId: string;
+  targetId?: string;
+  currentApproach: 'routed' | 'direct';
+}
 
 interface SimulationStore {
   approach: 'routed' | 'direct';
@@ -10,6 +18,8 @@ interface SimulationStore {
   animatingEdges: Set<string>;
   animatingNodes: Set<string>;
   pendingHops: NotificationHop[];
+  compare: CompareState;
+  messageCounts: Map<string, number>;
 
   setApproach: (approach: 'routed' | 'direct') => void;
   setSpeed: (speed: number) => void;
@@ -21,8 +31,19 @@ interface SimulationStore {
   addAnimatingNode: (nodeId: string) => void;
   removeAnimatingNode: (nodeId: string) => void;
   setPendingHops: (hops: NotificationHop[]) => void;
+  setCompare: (compare: Partial<CompareState>) => void;
+  incrementMessageCounts: (actorIds: string[]) => void;
+  resetMessageCounts: () => void;
   reset: () => void;
 }
+
+const initialCompare: CompareState = {
+  active: false,
+  eventType: null,
+  sourceId: '',
+  targetId: undefined,
+  currentApproach: 'routed',
+};
 
 export const useSimulationStore = create<SimulationStore>((set) => ({
   approach: 'routed',
@@ -33,6 +54,8 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   animatingEdges: new Set(),
   animatingNodes: new Set(),
   pendingHops: [],
+  compare: { ...initialCompare },
+  messageCounts: new Map(),
 
   setApproach: (approach) => set({ approach }),
   setSpeed: (speed) => set({ speed }),
@@ -65,6 +88,19 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
       return { animatingNodes: next };
     }),
   setPendingHops: (hops) => set({ pendingHops: hops }),
+  setCompare: (partial) =>
+    set((state) => ({ compare: { ...state.compare, ...partial } })),
+
+  incrementMessageCounts: (actorIds) =>
+    set((state) => {
+      const next = new Map(state.messageCounts);
+      for (const id of actorIds) {
+        next.set(id, (next.get(id) ?? 0) + 1);
+      }
+      return { messageCounts: next };
+    }),
+
+  resetMessageCounts: () => set({ messageCounts: new Map() }),
 
   reset: () =>
     set({
@@ -74,5 +110,7 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
       animatingEdges: new Set(),
       animatingNodes: new Set(),
       pendingHops: [],
+      compare: { ...initialCompare },
+      messageCounts: new Map(),
     }),
 }));

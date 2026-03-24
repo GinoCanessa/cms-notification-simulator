@@ -73,6 +73,7 @@ export default function GraphCanvas() {
 
   const animatingEdges = useSimulationStore((s) => s.animatingEdges);
   const animatingNodes = useSimulationStore((s) => s.animatingNodes);
+  const messageCounts = useSimulationStore((s) => s.messageCounts);
 
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
 
@@ -121,9 +122,10 @@ export default function GraphCanvas() {
         label: actor.name,
         shortId: actor.id.split('-').pop()?.toUpperCase() ?? actor.id,
         isAnimating: animatingNodes.has(actor.id),
+        messageCount: messageCounts.get(actor.id) ?? 0,
       },
     }));
-  }, [actors, positions, animatingNodes]);
+  }, [actors, positions, animatingNodes, messageCounts]);
 
   const flowEdges: Edge[] = useMemo(() => {
     const result: Edge[] = [];

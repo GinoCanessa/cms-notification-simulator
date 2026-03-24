@@ -5,6 +5,7 @@ interface IdpNodeData {
   label: string;
   shortId: string;
   isAnimating?: boolean;
+  messageCount?: number;
 }
 
 const FILL = "#D97706";
@@ -19,7 +20,7 @@ function hexPoints(r: number): string {
 }
 
 function IdpNode({ data }: NodeProps) {
-  const { label, shortId, isAnimating } = data as unknown as IdpNodeData;
+  const { label, shortId, isAnimating, messageCount = 0 } = data as unknown as IdpNodeData;
 
   const svgW = HEX_R * 2 + 12;
   const svgH = HEX_R * 2 + 24;
@@ -60,6 +61,20 @@ function IdpNode({ data }: NodeProps) {
           fontWeight="700"
         >
           {shortId}
+        </text>
+
+        {/* Message count badge */}
+        <circle cx={HEX_R - 6} cy={-(HEX_R - 8)} r={9} fill="#1E293B" stroke="white" strokeWidth={1.5} />
+        <text
+          x={HEX_R - 6}
+          y={-(HEX_R - 8)}
+          fill="white"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="9"
+          fontWeight="700"
+        >
+          {messageCount}
         </text>
 
         {/* Name label */}
