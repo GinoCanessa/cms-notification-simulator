@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMS Notification Simulator — Mockup D: Enterprise Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F1F5F9; --surface: #FFFFFF; --surface-alt: #F8FAFC;
+    --border: #E2E8F0; --border-strong: #CBD5E1;
+    --text: #0F172A; --text-secondary: #475569; --text-tertiary: #94A3B8;
+    --brand: #0F4C81; --brand-light: #E0F2FE; --brand-dark: #0C3D66;
+    --accent: #0EA5E9; --accent-light: #E0F7FF;
+    --success: #059669; --success-light: #D1FAE5;
+    --warning: #D97706; --warning-light: #FEF3C7;
+    --danger: #DC2626; --danger-light: #FEE2E2;
+    --purple: #7C3AED; --purple-light: #EDE9FE;
+    --orange: #EA580C; --orange-light: #FFF7ED;
+    --teal: #0D9488; --teal-light: #CCFBF1;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Top Bar ──────────────────────────────────────── */
+  .topbar { display: flex; align-items: center; height: 48px; background: var(--brand); padding: 0 16px; flex-shrink: 0; }
+  .topbar-left { display: flex; align-items: center; gap: 24px; }
+  .logo { font-weight: 700; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 10px; }
+  .logo svg { width: 22px; height: 22px; fill: #fff; }
+  .nav { display: flex; }
+  .nav a { text-decoration: none; font-size: 13px; font-weight: 500; padding: 12px 16px; color: rgba(255,255,255,.65); border-bottom: 2px solid transparent; transition: all .15s; }
+  .nav a:hover { color: rgba(255,255,255,.9); }
+  .nav a.active { color: #fff; border-bottom-color: #fff; }
+  .topbar-center { flex: 1; display: flex; justify-content: center; align-items: center; gap: 16px; }
+  .approach-seg { display: flex; background: rgba(255,255,255,.12); border-radius: 6px; overflow: hidden; }
+  .approach-seg button { font-size: 12px; font-weight: 600; padding: 5px 18px; border: none; cursor: pointer; background: transparent; color: rgba(255,255,255,.6); transition: all .15s; }
+  .approach-seg button.active { background: rgba(255,255,255,.2); color: #fff; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+  .top-select { font-size: 12px; padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.08); color: rgba(255,255,255,.8); }
+  .top-btn { font-size: 12px; padding: 4px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,.2); background: transparent; color: rgba(255,255,255,.7); cursor: pointer; }
+  .top-btn:hover { background: rgba(255,255,255,.1); }
+
+  /* ── Sub-header / Breadcrumb ──────────────────────── */
+  .subheader { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .breadcrumb { font-size: 12px; color: var(--text-tertiary); }
+  .breadcrumb strong { color: var(--text); }
+  .stats-row { display: flex; gap: 16px; }
+  .stat { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .stat-val { font-weight: 700; color: var(--text); }
+  .stat-label { color: var(--text-tertiary); }
+
+  /* ── Main ─────────────────────────────────────────── */
+  .main { flex: 1; display: flex; overflow: hidden; }
+
+  /* ── Left Panel (controls) ────────────────────────── */
+  .left-panel { width: 240px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; }
+  .panel-section { border-bottom: 1px solid var(--border); }
+  .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; cursor: pointer; }
+  .panel-header h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); }
+  .panel-header .chevron { font-size: 10px; color: var(--text-tertiary); }
+  .panel-body { padding: 0 12px 12px; }
+
+  .actor-list { display: flex; flex-direction: column; gap: 2px; }
+  .actor-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: background .1s; }
+  .actor-item:hover { background: var(--bg); }
+  .actor-item.selected { background: var(--brand-light); }
+  .actor-icon { width: 24px; height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; flex-shrink: 0; }
+  .actor-info { flex: 1; min-width: 0; }
+  .actor-name { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .actor-type { font-size: 10px; color: var(--text-tertiary); }
+  .actor-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+  .actor-item:hover .actor-actions { opacity: 1; }
+  .actor-actions button { width: 20px; height: 20px; border-radius: 3px; border: none; background: transparent; cursor: pointer; font-size: 10px; color: var(--text-tertiary); }
+  .actor-actions button:hover { background: var(--border); }
+
+  .add-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+  .add-chip { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 4px; border: 1px dashed var(--border); background: var(--surface-alt); cursor: pointer; color: var(--text-tertiary); transition: all .15s; }
+  .add-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+  .event-btn { width: 100%; padding: 7px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 11px; font-weight: 600; text-align: left; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; transition: all .1s; }
+  .event-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+  .event-btn .indicator { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .event-select { width: 100%; font-size: 11px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px; }
+
+  /* Playback bar */
+  .playback-bar { display: flex; align-items: center; gap: 4px; }
+  .playback-bar button { width: 24px; height: 24px; border-radius: 3px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-size: 10px; display: flex; align-items: center; justify-content: center; }
+  .playback-bar button:hover { border-color: var(--accent); }
+  .playback-bar input[type=range] { flex: 1; height: 4px; accent-color: var(--accent); }
+  .playback-bar .speed { font-size: 10px; font-weight: 700; color: var(--accent); min-width: 28px; text-align: right; }
+
+  /* ── Canvas ───────────────────────────────────────── */
+  .canvas { flex: 1; position: relative; background: var(--surface-alt); overflow: hidden; border-left: 0; }
+  .canvas-dot-bg { position: absolute; inset: 0; background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 20px 20px; }
+  .canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* Edges */
+  .edge-line { stroke: var(--border-strong); stroke-width: 2; fill: none; }
+  .edge-line.active { stroke: var(--warning); stroke-width: 2.5; }
+  .edge-line.direct { stroke-dasharray: 6 4; stroke: var(--teal); }
+  .edge-line.idp { stroke-dasharray: 3 3; stroke: var(--warning); opacity: .3; }
+
+  /* Nodes */
+  .n-shape { transition: filter .15s; }
+  .n-shape:hover { filter: brightness(.95); }
+  .n-text { font-family: var(--font); font-weight: 700; font-size: 10px; fill: #fff; text-anchor: middle; dominant-baseline: central; }
+  .n-label { font-family: var(--font); font-size: 10px; font-weight: 600; fill: var(--text); text-anchor: middle; }
+  .n-type { font-family: var(--font); font-size: 8px; fill: var(--text-tertiary); text-anchor: middle; }
+
+  @keyframes glow-pulse { 0%,100%{opacity:.3} 50%{opacity:.8} }
+  .glow-ring { fill: none; stroke-width: 2; animation: glow-pulse 1.5s ease-in-out infinite; }
+
+  .travel-dot { fill: var(--warning); }
+
+  /* Legend */
+  .legend { position: absolute; bottom: 12px; left: 12px; background: rgba(255,255,255,.92); backdrop-filter: blur(4px); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; display: flex; gap: 14px; font-size: 10px; color: var(--text-secondary); }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-line { width: 20px; height: 2px; }
+  .legend-line.solid { background: var(--border-strong); }
+  .legend-line.active { background: var(--warning); }
+  .legend-line.dash { background: repeating-linear-gradient(90deg, var(--teal) 0 5px, transparent 5px 9px); }
+  .legend-line.dot { background: repeating-linear-gradient(90deg, var(--warning) 0 2px, transparent 2px 5px); }
+
+  /* ── Right Panel (details) ────────────────────────── */
+  .right-panel { width: 240px; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; }
+  .detail-header { padding: 12px; border-bottom: 1px solid var(--border); }
+  .detail-header h2 { font-size: 14px; font-weight: 700; }
+  .detail-header .type-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-top: 4px; }
+  .detail-props { padding: 12px; }
+  .detail-prop { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--bg); font-size: 12px; }
+  .detail-prop .key { color: var(--text-tertiary); font-weight: 500; }
+  .detail-prop .value { font-weight: 600; text-align: right; }
+  .detail-connections { padding: 12px; }
+  .detail-connections h4 { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 6px; }
+  .conn-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-size: 12px; }
+  .conn-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .detail-footer { padding: 12px; display: flex; gap: 6px; border-top: 1px solid var(--border); }
+  .detail-footer button { flex: 1; padding: 6px; border-radius: 4px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-size: 11px; font-weight: 600; }
+  .detail-footer button:hover { background: var(--bg); }
+  .detail-footer button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .detail-footer button.danger { color: var(--danger); border-color: var(--danger-light); }
+  .detail-footer button.danger:hover { background: var(--danger-light); }
+
+  /* ── Event Log ────────────────────────────────────── */
+  .event-log { height: 200px; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; }
+  .log-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; height: 36px; border-bottom: 1px solid var(--border); background: var(--surface-alt); }
+  .log-tabs { display: flex; gap: 0; }
+  .log-tab { font-size: 11px; font-weight: 600; padding: 8px 14px; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent; }
+  .log-tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+  .log-tools { display: flex; gap: 6px; }
+  .log-tools select { font-size: 11px; padding: 2px 6px; border: 1px solid var(--border); border-radius: 3px; }
+  .log-tools button { font-size: 11px; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border); background: #fff; cursor: pointer; color: var(--text-tertiary); }
+  .log-table { flex: 1; overflow-y: auto; }
+  table.log { width: 100%; border-collapse: collapse; font-size: 11px; }
+  table.log thead { background: var(--surface-alt); position: sticky; top: 0; }
+  table.log th { text-align: left; padding: 6px 12px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-tertiary); border-bottom: 1px solid var(--border); }
+  table.log td { padding: 5px 12px; border-bottom: 1px solid var(--bg); white-space: nowrap; }
+  table.log tr:hover { background: var(--surface-alt); cursor: pointer; }
+  table.log .ts { font-family: var(--mono); font-size: 10px; color: var(--text-tertiary); }
+  table.log .actor-cell { display: flex; align-items: center; gap: 4px; }
+  table.log .actor-cell .dot { width: 6px; height: 6px; border-radius: 2px; }
+  table.log .type-pill { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 3px; }
+  table.log .channel-cell { font-size: 10px; font-weight: 600; }
+  table.log .channel-cell.trust { color: var(--warning); }
+  table.log .channel-cell.direct { color: var(--teal); }
+  table.log .hop-cell { font-family: var(--mono); font-size: 10px; color: var(--text-tertiary); }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/><path d="M12 2L2 7l10 5 10-5-10-5z" fill="rgba(255,255,255,.2)"/></svg>
+      CMS Notification Simulator
+    </div>
+    <nav class="nav">
+      <a href="#">Overview</a>
+      <a href="#" class="active">Simulator</a>
+      <a href="#">Documentation</a>
+    </nav>
+  </div>
+  <div class="topbar-center">
+    <div class="approach-seg">
+      <button class="active">Routed</button>
+      <button>Direct</button>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <select class="top-select"><option>Preset: Two Networks</option><option>Simple</option><option>Hub &amp; Spoke</option><option>Complex</option></select>
+    <button class="top-btn">Import</button>
+    <button class="top-btn">Export</button>
+    <button class="top-btn">🌙</button>
+  </div>
+</header>
+
+<!-- Sub-header -->
+<div class="subheader">
+  <div class="breadcrumb">Simulator &gt; <strong>Two Networks Preset</strong> &middot; Routed Mode</div>
+  <div class="stats-row">
+    <div class="stat"><span class="stat-dot" style="background:var(--success)"></span><span class="stat-val">2</span><span class="stat-label">Networks</span></div>
+    <div class="stat"><span class="stat-dot" style="background:var(--danger)"></span><span class="stat-val">2</span><span class="stat-label">Providers</span></div>
+    <div class="stat"><span class="stat-dot" style="background:var(--accent)"></span><span class="stat-val">2</span><span class="stat-label">Clients</span></div>
+    <div class="stat"><span class="stat-dot" style="background:var(--warning)"></span><span class="stat-val">1</span><span class="stat-label">IDP</span></div>
+    <div class="stat"><span class="stat-dot" style="background:var(--border-strong)"></span><span class="stat-val">5</span><span class="stat-label">Trust Links</span></div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <!-- Left Panel -->
+  <aside class="left-panel">
+    <div class="panel-section">
+      <div class="panel-header"><h3>Actors (7)</h3><span class="chevron">▾</span></div>
+      <div class="panel-body">
+        <div class="actor-list">
+          <div class="actor-item">
+            <span class="actor-icon" style="background:var(--danger)">🏥</span>
+            <div class="actor-info"><div class="actor-name">Dr. Smith</div><div class="actor-type">Provider · Network East</div></div>
+            <div class="actor-actions"><button>✎</button><button>×</button></div>
+          </div>
+          <div class="actor-item">
+            <span class="actor-icon" style="background:var(--danger)">🏥</span>
+            <div class="actor-info"><div class="actor-name">City Hospital</div><div class="actor-type">Provider · Network East</div></div>
+            <div class="actor-actions"><button>✎</button><button>×</button></div>
+          </div>
+          <div class="actor-item">
+            <span class="actor-icon" style="background:var(--success)">🌐</span>
+            <div class="actor-info"><div class="actor-name">Network East</div><div class="actor-type">CMS Network · 1 peer</div></div>
+            <div class="actor-actions"><button>✎</button><button>×</button></div>
+          </div>
+          <div class="actor-item selected">
+            <span class="actor-icon" style="background:var(--success)">🌐</span>
+            <div class="actor-info"><div class="actor-name">Network West</div><div class="actor-type">CMS Network · 1 peer</div></div>
+            <div class="actor-actions"><button>✎</button><button>×</button></div>
+          </div>
+          <div class="actor-item">
+            <span class="actor-icon" style="background:var(--accent)">👤</span>
+            <div class="actor-info"><div class="actor-name">MyChart</div><div class="actor-type">Client (Patient) · Network West</div></div>
+            <div class="actor-actions"><button>✎</button><button>×</button></div>
+          </div>
+          <div class="actor-item">
+            <span class="actor-icon" style="background:var(--purple)">👥</span>
+            <div class="actor-info"><div class="actor-name">Payer Portal</div><div class="actor-type">Client (Delegated) · Network West</div></div>
+            <div class="actor-actions"><button>✎</button><button>×</button></div>
+          </div>
+          <div class="actor-item">
+            <span class="actor-icon" style="background:var(--warning)">🔑</span>
+            <div class="actor-info"><div class="actor-name">CMS IDP</div><div class="actor-type">Identity Platform</div></div>
+            <div class="actor-actions"><button>✎</button><button>×</button></div>
+          </div>
+        </div>
+        <div class="add-row">
+          <span class="add-chip">+ Patient</span>
+          <span class="add-chip">+ Delegated</span>
+          <span class="add-chip">+ IDP</span>
+          <span class="add-chip">+ Network</span>
+          <span class="add-chip">+ Provider</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-header"><h3>Trigger Event</h3><span class="chevron">▾</span></div>
+      <div class="panel-body">
+        <select class="event-select"><option>Source: Dr. Smith (Provider)</option><option>Source: City Hospital (Provider)</option></select>
+        <button class="event-btn"><span class="indicator" style="background:var(--warning)"></span> Encounter Update</button>
+        <button class="event-btn"><span class="indicator" style="background:var(--purple)"></span> New Care Relationship</button>
+        <div style="height:6px; border-top:1px solid var(--border); margin:6px 0"></div>
+        <button class="event-btn"><span class="indicator" style="background:var(--accent)"></span> New Client Registration</button>
+        <button class="event-btn"><span class="indicator" style="background:var(--success)"></span> New Network Peer</button>
+        <button class="event-btn"><span class="indicator" style="background:var(--danger)"></span> New Provider Registration</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-header"><h3>Playback</h3><span class="chevron">▾</span></div>
+      <div class="panel-body">
+        <div class="playback-bar">
+          <button>⏮</button>
+          <button>▶</button>
+          <button>⏭</button>
+          <input type="range" min="1" max="10" value="5" />
+          <span class="speed">1.0×</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Canvas -->
+  <div class="canvas">
+    <div class="canvas-dot-bg"></div>
+    <svg viewBox="0 0 700 420" xmlns="http://www.w3.org/2000/svg">
+      <!-- Edges -->
+      <line class="edge-line" x1="110" y1="130" x2="280" y2="195" />
+      <line class="edge-line" x1="110" y1="290" x2="280" y2="225" />
+      <line class="edge-line active" x1="310" y1="210" x2="420" y2="210" />
+      <line class="edge-line" x1="450" y1="195" x2="590" y2="120" />
+      <line class="edge-line active" x1="450" y1="225" x2="590" y2="300" />
+      <line class="edge-line idp" x1="590" y1="120" x2="590" y2="42" />
+      <line class="edge-line idp" x1="590" y1="300" x2="590" y2="42" />
+
+      <!-- Animated dots -->
+      <circle class="travel-dot" r="4">
+        <animateMotion dur="1.5s" repeatCount="indefinite" path="M310,210 L420,210" />
+      </circle>
+      <circle class="travel-dot" r="4" style="fill:var(--accent)">
+        <animateMotion dur="1.3s" repeatCount="indefinite" path="M450,225 L590,300" begin="0.4s" />
+      </circle>
+
+      <!-- Glow rings -->
+      <circle class="glow-ring" cx="435" cy="210" r="30" stroke="var(--warning)" />
+      <circle class="glow-ring" cx="590" cy="300" r="24" stroke="var(--accent)" style="animation-delay:.4s" />
+
+      <!-- Providers -->
+      <g transform="translate(90,130)" style="cursor:pointer">
+        <polygon points="0,-22 26,0 0,22 -26,0" fill="var(--danger)" />
+        <text class="n-text" dy="1">P1</text>
+        <text class="n-label" y="34">Dr. Smith</text>
+        <text class="n-type" y="44">Provider</text>
+      </g>
+      <g transform="translate(90,290)" style="cursor:pointer">
+        <polygon points="0,-22 26,0 0,22 -26,0" fill="var(--danger)" />
+        <text class="n-text" dy="1">P2</text>
+        <text class="n-label" y="34">City Hospital</text>
+        <text class="n-type" y="44">Provider</text>
+      </g>
+
+      <!-- Networks -->
+      <g transform="translate(295,210)" style="cursor:pointer">
+        <circle r="28" fill="var(--success)" />
+        <text class="n-text" dy="1">N-A</text>
+        <text class="n-label" y="40">Net East</text>
+      </g>
+      <g transform="translate(435,210)" style="cursor:pointer">
+        <circle r="28" fill="var(--success)" />
+        <text class="n-text" dy="1">N-B</text>
+        <text class="n-label" y="40">Net West</text>
+      </g>
+
+      <!-- Clients -->
+      <g transform="translate(590,120)" style="cursor:pointer">
+        <rect x="-32" y="-18" width="64" height="36" rx="6" fill="var(--accent)" />
+        <text class="n-text" dy="1">CA-1</text>
+        <text class="n-label" y="30">MyChart</text>
+        <text class="n-type" y="40">Patient</text>
+      </g>
+      <g transform="translate(590,300)" style="cursor:pointer">
+        <rect x="-32" y="-18" width="64" height="36" rx="6" fill="var(--purple)" />
+        <text class="n-text" dy="1">CA-2</text>
+        <text class="n-label" y="30">Payer Portal</text>
+        <text class="n-type" y="40">Delegated</text>
+      </g>
+
+      <!-- IDP -->
+      <g transform="translate(590,42)" style="cursor:pointer">
+        <polygon points="0,-18 16,-9 16,9 0,18 -16,9 -16,-9" fill="var(--warning)" />
+        <text class="n-text" dy="1" font-size="8">IDP</text>
+        <text class="n-label" y="28">CMS IDP</text>
+      </g>
+    </svg>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item"><span class="legend-line solid"></span> Trust Link</div>
+      <div class="legend-item"><span class="legend-line active"></span> Active Flow</div>
+      <div class="legend-item"><span class="legend-line dash"></span> Direct Channel</div>
+      <div class="legend-item"><span class="legend-line dot"></span> Identity Link</div>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <aside class="right-panel">
+    <div class="detail-header">
+      <h2>Network West</h2>
+      <span class="type-badge" style="background:var(--success-light);color:var(--success);">CMS Network</span>
+    </div>
+    <div class="detail-props">
+      <div class="detail-prop"><span class="key">ID</span><span class="value">network-b</span></div>
+      <div class="detail-prop"><span class="key">Status</span><span class="value" style="color:var(--success)">● Active</span></div>
+      <div class="detail-prop"><span class="key">Peer count</span><span class="value">1</span></div>
+      <div class="detail-prop"><span class="key">Client count</span><span class="value">2</span></div>
+      <div class="detail-prop"><span class="key">Provider count</span><span class="value">0</span></div>
+    </div>
+    <div class="detail-connections">
+      <h4>Connections</h4>
+      <div class="conn-item"><span class="conn-dot" style="background:var(--success)"></span> Network East <span style="color:var(--text-tertiary);font-size:10px;margin-left:auto">peer</span></div>
+      <div class="conn-item"><span class="conn-dot" style="background:var(--accent)"></span> MyChart <span style="color:var(--text-tertiary);font-size:10px;margin-left:auto">client</span></div>
+      <div class="conn-item"><span class="conn-dot" style="background:var(--purple)"></span> Payer Portal <span style="color:var(--text-tertiary);font-size:10px;margin-left:auto">client</span></div>
+    </div>
+    <div class="detail-footer">
+      <button class="primary">Edit</button>
+      <button class="danger">Remove</button>
+    </div>
+  </aside>
+</div>
+
+<!-- Event Log -->
+<div class="event-log">
+  <div class="log-toolbar">
+    <div class="log-tabs">
+      <span class="log-tab active">Event Log</span>
+      <span class="log-tab">Raw Data</span>
+      <span class="log-tab">Metrics</span>
+    </div>
+    <div class="log-tools">
+      <select><option>All Events</option><option>Encounter</option><option>Care Relationship</option><option>Registration</option></select>
+      <button>⤓ Export</button>
+      <button>Clear</button>
+    </div>
+  </div>
+  <div class="log-table">
+    <table class="log">
+      <thead>
+        <tr>
+          <th style="width:80px">Time</th>
+          <th>Source</th>
+          <th style="width:20px"></th>
+          <th>Destination</th>
+          <th>Message Type</th>
+          <th style="width:60px">Channel</th>
+          <th style="width:50px">Hop</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="ts">00:00.000</td>
+          <td><span class="actor-cell"><span class="dot" style="background:var(--danger)"></span> Dr. Smith</span></td>
+          <td style="color:var(--text-tertiary)">→</td>
+          <td><span class="actor-cell"><span class="dot" style="background:var(--success)"></span> Network East</span></td>
+          <td><span class="type-pill" style="background:var(--warning-light);color:var(--warning)">encounter-notification</span></td>
+          <td class="channel-cell trust">trust</td>
+          <td class="hop-cell">1/4</td>
+        </tr>
+        <tr>
+          <td class="ts">00:00.500</td>
+          <td><span class="actor-cell"><span class="dot" style="background:var(--success)"></span> Network East</span></td>
+          <td style="color:var(--text-tertiary)">→</td>
+          <td><span class="actor-cell"><span class="dot" style="background:var(--success)"></span> Network West</span></td>
+          <td><span class="type-pill" style="background:var(--warning-light);color:var(--warning)">encounter-relay</span></td>
+          <td class="channel-cell trust">trust</td>
+          <td class="hop-cell">2/4</td>
+        </tr>
+        <tr>
+          <td class="ts">00:01.000</td>
+          <td><span class="actor-cell"><span class="dot" style="background:var(--success)"></span> Network West</span></td>
+          <td style="color:var(--text-tertiary)">→</td>
+          <td><span class="actor-cell"><span class="dot" style="background:var(--accent)"></span> MyChart</span></td>
+          <td><span class="type-pill" style="background:var(--accent-light);color:var(--accent)">encounter-notification</span></td>
+          <td class="channel-cell trust">trust</td>
+          <td class="hop-cell">3/4</td>
+        </tr>
+        <tr style="background:var(--surface-alt)">
+          <td class="ts">00:01.000</td>
+          <td><span class="actor-cell"><span class="dot" style="background:var(--success)"></span> Network West</span></td>
+          <td style="color:var(--text-tertiary)">→</td>
+          <td><span class="actor-cell"><span class="dot" style="background:var(--purple)"></span> Payer Portal</span></td>
+          <td><span class="type-pill" style="background:var(--purple-light);color:var(--purple)">encounter-notification</span></td>
+          <td class="channel-cell trust">trust</td>
+          <td class="hop-cell">4/4</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>
