@@ -15,7 +15,7 @@ interface SimulationStore {
   isPlaying: boolean;
   activeHops: NotificationHop[];
   currentStep: number;
-  animatingEdges: Set<string>;
+  animatingEdges: Map<string, 'forward' | 'reverse'>;
   animatingNodes: Set<string>;
   pendingHops: NotificationHop[];
   compare: CompareState;
@@ -26,7 +26,7 @@ interface SimulationStore {
   setPlaying: (playing: boolean) => void;
   setActiveHops: (hops: NotificationHop[]) => void;
   setCurrentStep: (step: number) => void;
-  addAnimatingEdge: (edgeId: string) => void;
+  addAnimatingEdge: (edgeId: string, direction: 'forward' | 'reverse') => void;
   removeAnimatingEdge: (edgeId: string) => void;
   addAnimatingNode: (nodeId: string) => void;
   removeAnimatingNode: (nodeId: string) => void;
@@ -51,7 +51,7 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   isPlaying: false,
   activeHops: [],
   currentStep: 0,
-  animatingEdges: new Set(),
+  animatingEdges: new Map(),
   animatingNodes: new Set(),
   pendingHops: [],
   compare: { ...initialCompare },
@@ -63,15 +63,15 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   setActiveHops: (hops) => set({ activeHops: hops }),
   setCurrentStep: (step) => set({ currentStep: step }),
 
-  addAnimatingEdge: (edgeId) =>
+  addAnimatingEdge: (edgeId, direction) =>
     set((state) => {
-      const next = new Set(state.animatingEdges);
-      next.add(edgeId);
+      const next = new Map(state.animatingEdges);
+      next.set(edgeId, direction);
       return { animatingEdges: next };
     }),
   removeAnimatingEdge: (edgeId) =>
     set((state) => {
-      const next = new Set(state.animatingEdges);
+      const next = new Map(state.animatingEdges);
       next.delete(edgeId);
       return { animatingEdges: next };
     }),
@@ -112,7 +112,7 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
       isPlaying: false,
       activeHops: [],
       currentStep: 0,
-      animatingEdges: new Set(),
+      animatingEdges: new Map(),
       animatingNodes: new Set(),
       pendingHops: [],
       compare: { ...initialCompare },

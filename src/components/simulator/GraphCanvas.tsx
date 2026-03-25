@@ -163,13 +163,15 @@ export default function GraphCanvas() {
           : edge.edgeType === 'direct' || edge.edgeType === 'direct-active' ? 'direct'
           : edge.edgeType === 'identity' ? 'identity'
           : 'trust';
+      const animDir = animatingEdges.get(edge.id);
       result.push({
         id: edge.id,
         source: edge.sourceId,
         target: edge.targetId,
         type,
         data: {
-          isActive: animatingEdges.has(edge.id),
+          isActive: animDir !== undefined,
+          isReversed: animDir === 'reverse',
           isHighlighted: isEdgeHighlighted(edge.sourceId, edge.targetId, type),
         },
       });
@@ -179,13 +181,15 @@ export default function GraphCanvas() {
       const dcEdgeId = `dc-${dc.providerId}-${dc.clientId}`;
       // Avoid duplicating if the same id exists in edges
       if (!edges.has(dcEdgeId)) {
+        const animDir = animatingEdges.get(dcEdgeId);
         result.push({
           id: dcEdgeId,
           source: dc.providerId,
           target: dc.clientId,
           type: 'direct',
           data: {
-            isActive: animatingEdges.has(dcEdgeId),
+            isActive: animDir !== undefined,
+            isReversed: animDir === 'reverse',
             isHighlighted: isEdgeHighlighted(dc.providerId, dc.clientId, 'direct'),
           },
         });
@@ -195,13 +199,15 @@ export default function GraphCanvas() {
     // Provider→IDP trust edges (dynamic, Direct approach only)
     for (const edge of providerIdpEdges.values()) {
       if (!edges.has(edge.id)) {
+        const animDir = animatingEdges.get(edge.id);
         result.push({
           id: edge.id,
           source: edge.sourceId,
           target: edge.targetId,
           type: 'trust',
           data: {
-            isActive: animatingEdges.has(edge.id),
+            isActive: animDir !== undefined,
+            isReversed: animDir === 'reverse',
             isHighlighted: isEdgeHighlighted(edge.sourceId, edge.targetId, 'trust'),
           },
         });

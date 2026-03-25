@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { getBezierPath, type EdgeProps } from '@xyflow/react';
 
-type DirectEdgeData = { isActive?: boolean; isHighlighted?: boolean };
+type DirectEdgeData = { isActive?: boolean; isReversed?: boolean; isHighlighted?: boolean };
 
 const IDLE_COLOR = '#0D9488';
 const ACTIVE_COLOR = '#14B8A6';
@@ -28,6 +28,7 @@ function DirectEdge({
 
   const edgeData = data as DirectEdgeData | undefined;
   const isActive = edgeData?.isActive ?? false;
+  const isReversed = edgeData?.isReversed ?? false;
   const isHighlighted = edgeData?.isHighlighted ?? false;
 
   const strokeColor = isActive ? ACTIVE_COLOR : isHighlighted ? HIGHLIGHT_COLOR : IDLE_COLOR;
@@ -45,7 +46,12 @@ function DirectEdge({
       />
       {isActive && (
         <circle r={4} fill={ACTIVE_COLOR}>
-          <animateMotion dur="1s" repeatCount="indefinite" path={edgePath} />
+          <animateMotion
+            dur="1s"
+            repeatCount="indefinite"
+            path={edgePath}
+            {...(isReversed ? { keyPoints: '1;0', keyTimes: '0;1' } : {})}
+          />
         </circle>
       )}
     </>

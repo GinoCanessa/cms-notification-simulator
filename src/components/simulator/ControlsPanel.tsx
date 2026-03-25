@@ -139,32 +139,33 @@ export default function ControlsPanel() {
     syncDirectChannelsNow();
   }, [approach, actors, edges, syncDirectChannelsNow]);
 
-  // Find the edge between two actors (reads fresh state to work during animations)
-  const findEdgeId = useCallback(
-    (fromId: string, toId: string): string | null => {
+  // Find the edge between two actors and determine animation direction
+  const findEdge = useCallback(
+    (fromId: string, toId: string): { id: string; direction: 'forward' | 'reverse' } | null => {
       const { edges: currentEdges, directChannels: currentDC, providerIdpEdges: currentIdpEdges } = useGraphStore.getState();
       for (const edge of currentEdges.values()) {
-        if (
-          (edge.sourceId === fromId && edge.targetId === toId) ||
-          (edge.sourceId === toId && edge.targetId === fromId)
-        ) {
-          return edge.id;
+        if (edge.sourceId === fromId && edge.targetId === toId) {
+          return { id: edge.id, direction: 'forward' };
+        }
+        if (edge.sourceId === toId && edge.targetId === fromId) {
+          return { id: edge.id, direction: 'reverse' };
         }
       }
       for (const dc of currentDC.values()) {
-        if (
-          (dc.providerId === fromId && dc.clientId === toId) ||
-          (dc.providerId === toId && dc.clientId === fromId)
-        ) {
-          return `dc-${dc.providerId}-${dc.clientId}`;
+        const dcEdgeId = `dc-${dc.providerId}-${dc.clientId}`;
+        if (dc.providerId === fromId && dc.clientId === toId) {
+          return { id: dcEdgeId, direction: 'forward' };
+        }
+        if (dc.providerId === toId && dc.clientId === fromId) {
+          return { id: dcEdgeId, direction: 'reverse' };
         }
       }
       for (const edge of currentIdpEdges.values()) {
-        if (
-          (edge.sourceId === fromId && edge.targetId === toId) ||
-          (edge.sourceId === toId && edge.targetId === fromId)
-        ) {
-          return edge.id;
+        if (edge.sourceId === fromId && edge.targetId === toId) {
+          return { id: edge.id, direction: 'forward' };
+        }
+        if (edge.sourceId === toId && edge.targetId === fromId) {
+          return { id: edge.id, direction: 'reverse' };
         }
       }
       return null;
@@ -199,8 +200,8 @@ export default function ControlsPanel() {
         for (const hop of group) {
           senderIds.push(hop.fromId);
           receiverIds.push(hop.toId);
-          const edgeId = findEdgeId(hop.fromId, hop.toId);
-          if (edgeId) addAnimatingEdge(edgeId);
+          const edge = findEdge(hop.fromId, hop.toId);
+          if (edge) addAnimatingEdge(edge.id, edge.direction);
           addAnimatingNode(hop.toId);
         }
         incrementMessageCounts(senderIds, receiverIds);
@@ -208,8 +209,8 @@ export default function ControlsPanel() {
         await new Promise((resolve) => setTimeout(resolve, hopDuration));
 
         for (const hop of group) {
-          const edgeId = findEdgeId(hop.fromId, hop.toId);
-          if (edgeId) removeAnimatingEdge(edgeId);
+          const edge = findEdge(hop.fromId, hop.toId);
+          if (edge) removeAnimatingEdge(edge.id);
         }
 
         await new Promise((resolve) => setTimeout(resolve, 200 / currentSpeed));
@@ -219,7 +220,7 @@ export default function ControlsPanel() {
         }
       }
     },
-    [findEdgeId, addAnimatingEdge, removeAnimatingEdge, addAnimatingNode, removeAnimatingNode, incrementMessageCounts],
+    [findEdge, addAnimatingEdge, removeAnimatingEdge, addAnimatingNode, removeAnimatingNode, incrementMessageCounts],
   );
 
   const triggerEventForApproach = useCallback(
