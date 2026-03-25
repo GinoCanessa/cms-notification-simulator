@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   Repeat,
+  RotateCcw,
 } from 'lucide-react';
 import { useGraphStore } from '../../stores/graphStore';
 import { useSimulationStore } from '../../stores/simulationStore';
@@ -78,6 +79,7 @@ export default function ControlsPanel() {
   const addActor = useGraphStore((s) => s.addActor);
   const removeActor = useGraphStore((s) => s.removeActor);
   const addDirectChannel = useGraphStore((s) => s.addDirectChannel);
+  const clearDirectChannels = useGraphStore((s) => s.clearDirectChannels);
 
   const approach = useSimulationStore((s) => s.approach);
   const speed = useSimulationStore((s) => s.speed);
@@ -97,6 +99,7 @@ export default function ControlsPanel() {
   const simulationReset = useSimulationStore((s) => s.reset);
 
   const addEntries = useEventLogStore((s) => s.addEntries);
+  const clearLog = useEventLogStore((s) => s.clearLog);
   const incrementMessageCounts = useSimulationStore((s) => s.incrementMessageCounts);
   const resetMessageCounts = useSimulationStore((s) => s.resetMessageCounts);
 
@@ -152,15 +155,17 @@ export default function ControlsPanel() {
       }
 
       for (const group of groups) {
-        // Collect unique actor IDs involved in this group
-        const involvedActors: string[] = [];
+        // Collect unique sender and receiver IDs involved in this group
+        const senderIds: string[] = [];
+        const receiverIds: string[] = [];
         for (const hop of group) {
-          involvedActors.push(hop.fromId, hop.toId);
+          senderIds.push(hop.fromId);
+          receiverIds.push(hop.toId);
           const edgeId = findEdgeId(hop.fromId, hop.toId);
           if (edgeId) addAnimatingEdge(edgeId);
           addAnimatingNode(hop.toId);
         }
-        incrementMessageCounts(involvedActors);
+        incrementMessageCounts(senderIds, receiverIds);
 
         await new Promise((resolve) => setTimeout(resolve, hopDuration));
 
@@ -603,7 +608,20 @@ export default function ControlsPanel() {
             </button>
           </div>
 
-          {/* Compare loop toggle */}
+          <button
+            onClick={() => { stopCompareLoop(); simulationReset(); clearLog(); clearDirectChannels(); }}
+            disabled={isPlaying}
+            className={`w-full flex items-center justify-center gap-1.5 text-xs px-2 py-1.5 rounded
+              border transition-colors ${
+              isPlaying
+                ? 'border-[var(--color-border)] text-[var(--color-text-tertiary)] bg-[var(--color-surface-alt)] cursor-not-allowed opacity-50'
+                : 'border-[var(--color-border)] text-[var(--color-text-secondary)] bg-[var(--color-surface-alt)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]'
+            }`}
+            title="Reset all events, logs, and message counts without removing actors"
+          >
+            <RotateCcw size={12} />
+            Reset Events
+          </button>
           <div className="pt-1 border-t border-[var(--color-border)]">
             <button
               disabled={!canCompare && !compare.active}

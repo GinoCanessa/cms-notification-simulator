@@ -122,7 +122,10 @@ export default function GraphCanvas() {
         label: actor.name,
         shortId: actor.id.split('-').pop()?.toUpperCase() ?? actor.id,
         isAnimating: animatingNodes.has(actor.id),
-        messageCount: messageCounts.get(actor.id) ?? 0,
+        messageCount: (() => {
+          const counts = messageCounts.get(actor.id);
+          return counts ? `${counts.received}:${counts.sent}` : '0:0';
+        })(),
       },
     }));
   }, [actors, positions, animatingNodes, messageCounts]);

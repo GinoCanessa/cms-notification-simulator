@@ -19,7 +19,7 @@ interface SimulationStore {
   animatingNodes: Set<string>;
   pendingHops: NotificationHop[];
   compare: CompareState;
-  messageCounts: Map<string, number>;
+  messageCounts: Map<string, { sent: number; received: number }>;
 
   setApproach: (approach: 'routed' | 'direct') => void;
   setSpeed: (speed: number) => void;
@@ -32,7 +32,7 @@ interface SimulationStore {
   removeAnimatingNode: (nodeId: string) => void;
   setPendingHops: (hops: NotificationHop[]) => void;
   setCompare: (compare: Partial<CompareState>) => void;
-  incrementMessageCounts: (actorIds: string[]) => void;
+  incrementMessageCounts: (senderIds: string[], receiverIds: string[]) => void;
   resetMessageCounts: () => void;
   reset: () => void;
 }
@@ -91,11 +91,16 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   setCompare: (partial) =>
     set((state) => ({ compare: { ...state.compare, ...partial } })),
 
-  incrementMessageCounts: (actorIds) =>
+  incrementMessageCounts: (senderIds, receiverIds) =>
     set((state) => {
       const next = new Map(state.messageCounts);
-      for (const id of actorIds) {
-        next.set(id, (next.get(id) ?? 0) + 1);
+      for (const id of senderIds) {
+        const prev = next.get(id) ?? { sent: 0, received: 0 };
+        next.set(id, { ...prev, sent: prev.sent + 1 });
+      }
+      for (const id of receiverIds) {
+        const prev = next.get(id) ?? { sent: 0, received: 0 };
+        next.set(id, { ...prev, received: prev.received + 1 });
       }
       return { messageCounts: next };
     }),
