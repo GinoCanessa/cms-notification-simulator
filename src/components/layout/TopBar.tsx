@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Layers, Upload, Download } from 'lucide-react';
 import { useGraphStore } from '../../stores/graphStore';
+import { useEventLogStore } from '../../stores/eventLogStore';
+import { useSimulationStore } from '../../stores/simulationStore';
 import { allPresets } from '../../presets';
 import { ThemeToggle } from '../shared/ThemeToggle';
 
@@ -23,6 +25,8 @@ export function TopBar() {
   function handlePresetSelect(presetId: string) {
     const preset = allPresets.find((p) => p.id === presetId);
     if (preset) {
+      useEventLogStore.getState().clearAll();
+      useSimulationStore.getState().reset();
       useGraphStore.getState().loadPreset(preset.actors, preset.edges);
     }
     setPresetOpen(false);
