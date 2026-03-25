@@ -173,7 +173,7 @@ export default function ControlsPanel() {
   );
 
   const runAnimation = useCallback(
-    async (hops: NotificationHop[]) => {
+    async (hops: NotificationHop[], onBeforeGroup?: (group: NotificationHop[]) => void) => {
       const currentSpeed = useSimulationStore.getState().speed;
       const hopDuration = 500 / currentSpeed;
 
@@ -190,6 +190,9 @@ export default function ControlsPanel() {
 
       for (const group of groups) {
         if (playbackAbortRef.current) break;
+
+        onBeforeGroup?.(group);
+
         // Collect unique sender and receiver IDs involved in this group
         const senderIds: string[] = [];
         const receiverIds: string[] = [];
@@ -289,10 +292,29 @@ export default function ControlsPanel() {
       setActiveHops(hops);
       setPendingHops([...hops]);
 
-      await runAnimation(hops);
+      // For new-care-relationship in direct mode, create the direct
+      // channels right before the handshake step so the relationship
+      // edges appear on the graph as the handshake is exchanged.
+      let onBeforeGroup: ((group: NotificationHop[]) => void) | undefined;
+      if (forApproach === 'direct' && eventType === 'new-care-relationship') {
+        let channelsCreated = false;
+        onBeforeGroup = (group: NotificationHop[]) => {
+          if (channelsCreated) return;
+          if (group.some((h) => h.messageType === 'direct-channel-handshake')) {
+            channelsCreated = true;
+            const newChannels = getNewDirectChannels(event, graph);
+            newChannels.forEach((ch) => addDirectChannel(ch));
+            const { directChannels: updatedDC } = useGraphStore.getState();
+            setProviderIdpEdges(computeProviderIdpTrustEdges(Array.from(updatedDC.values()), graph));
+          }
+        };
+      }
+
+      await runAnimation(hops, onBeforeGroup);
 
       // After animation, add any new direct channels established by this event
-      if (forApproach === 'direct') {
+      // (skip new-care-relationship — channels were already created above)
+      if (forApproach === 'direct' && eventType !== 'new-care-relationship') {
         const newChannels = getNewDirectChannels(event, graph);
         newChannels.forEach((ch) => addDirectChannel(ch));
         const { directChannels: updatedDC } = useGraphStore.getState();
