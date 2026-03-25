@@ -5,16 +5,18 @@ interface NetworkNodeData {
   label: string;
   shortId: string;
   isAnimating?: boolean;
+  isHighlighted?: boolean;
   messageCount?: string;
 }
 
 const FILL = "#059669";
+const HIGHLIGHT_COLOR = "#3B82F6";
 const R = 28;
 const SVG_SIZE = R * 2 + 8;
 const HALF = SVG_SIZE / 2;
 
 function NetworkNode({ data }: NodeProps) {
-  const { label, shortId, isAnimating, messageCount = '0:0' } = data as unknown as NetworkNodeData;
+  const { label, shortId, isAnimating, isHighlighted, messageCount = '0:0' } = data as unknown as NetworkNodeData;
 
   return (
     <div style={{ position: "relative" }}>
@@ -32,6 +34,10 @@ function NetworkNode({ data }: NodeProps) {
               repeatCount="indefinite"
             />
           </circle>
+        )}
+
+        {isHighlighted && !isAnimating && (
+          <circle r={R + 4} fill="none" stroke={HIGHLIGHT_COLOR} strokeWidth={2.5} strokeDasharray="4 2" />
         )}
 
         {/* Circle */}

@@ -13,6 +13,7 @@ import {
 } from '@xyflow/react';
 import { useGraphStore } from '../../stores/graphStore';
 import { useSimulationStore } from '../../stores/simulationStore';
+import { useEventLogStore } from '../../stores/eventLogStore';
 import type { ActorType } from '../../types';
 
 import ProviderNode from '../graph/nodes/ProviderNode';
@@ -77,6 +78,10 @@ export default function GraphCanvas() {
   const animatingNodes = useSimulationStore((s) => s.animatingNodes);
   const messageCounts = useSimulationStore((s) => s.messageCounts);
 
+  const selectedEntryId = useEventLogStore((s) => s.selectedEntryId);
+  const logEntries = useEventLogStore((s) => s.entries);
+  const selectEntry = useEventLogStore((s) => s.selectEntry);
+
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
 
   // Sync positions when actors appear without positions (e.g. preset load or new actors)
@@ -115,6 +120,12 @@ export default function GraphCanvas() {
     };
   }, [setPresetPositions]);
 
+  // Derive highlighted node/edge IDs from selected message log entry
+  const selectedEntry = useMemo(() => {
+    if (!selectedEntryId) return null;
+    return logEntries.find((e) => e.id === selectedEntryId) ?? null;
+  }, [selectedEntryId, logEntries]);
+
   const flowNodes: Node[] = useMemo(() => {
     return Array.from(actors.values()).map((actor) => ({
       id: actor.id,
@@ -124,27 +135,43 @@ export default function GraphCanvas() {
         label: actor.name,
         shortId: actor.id.split('-').pop()?.toUpperCase() ?? actor.id,
         isAnimating: animatingNodes.has(actor.id),
+        isHighlighted: selectedEntry != null && (actor.id === selectedEntry.from.id || actor.id === selectedEntry.to.id),
         messageCount: (() => {
           const counts = messageCounts.get(actor.id);
           return counts ? `${counts.received}:${counts.sent}` : '0:0';
         })(),
       },
     }));
-  }, [actors, positions, animatingNodes, messageCounts]);
+  }, [actors, positions, animatingNodes, messageCounts, selectedEntry]);
 
   const flowEdges: Edge[] = useMemo(() => {
     const result: Edge[] = [];
 
+    const isEdgeHighlighted = (source: string, target: string, type: string) => {
+      if (!selectedEntry) return false;
+      const matchesActors =
+        (source === selectedEntry.from.id && target === selectedEntry.to.id) ||
+        (source === selectedEntry.to.id && target === selectedEntry.from.id);
+      if (!matchesActors) return false;
+      if (selectedEntry.channel === 'trust' && type === 'trust') return true;
+      if (selectedEntry.channel === 'direct' && type === 'direct') return true;
+      return false;
+    };
+
     for (const edge of edges.values()) {
+      const type = edge.edgeType === 'trust' || edge.edgeType === 'trust-active' ? 'trust'
+          : edge.edgeType === 'direct' || edge.edgeType === 'direct-active' ? 'direct'
+          : edge.edgeType === 'identity' ? 'identity'
+          : 'trust';
       result.push({
         id: edge.id,
         source: edge.sourceId,
         target: edge.targetId,
-        type: edge.edgeType === 'trust' || edge.edgeType === 'trust-active' ? 'trust'
-            : edge.edgeType === 'direct' || edge.edgeType === 'direct-active' ? 'direct'
-            : edge.edgeType === 'identity' ? 'identity'
-            : 'trust',
-        data: { isActive: animatingEdges.has(edge.id) },
+        type,
+        data: {
+          isActive: animatingEdges.has(edge.id),
+          isHighlighted: isEdgeHighlighted(edge.sourceId, edge.targetId, type),
+        },
       });
     }
 
@@ -157,7 +184,10 @@ export default function GraphCanvas() {
           source: dc.providerId,
           target: dc.clientId,
           type: 'direct',
-          data: { isActive: animatingEdges.has(dcEdgeId) },
+          data: {
+            isActive: animatingEdges.has(dcEdgeId),
+            isHighlighted: isEdgeHighlighted(dc.providerId, dc.clientId, 'direct'),
+          },
         });
       }
     }
@@ -170,13 +200,16 @@ export default function GraphCanvas() {
           source: edge.sourceId,
           target: edge.targetId,
           type: 'trust',
-          data: { isActive: animatingEdges.has(edge.id) },
+          data: {
+            isActive: animatingEdges.has(edge.id),
+            isHighlighted: isEdgeHighlighted(edge.sourceId, edge.targetId, 'trust'),
+          },
         });
       }
     }
 
     return result;
-  }, [edges, directChannels, providerIdpEdges, animatingEdges]);
+  }, [edges, directChannels, providerIdpEdges, animatingEdges, selectedEntry]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -205,7 +238,8 @@ export default function GraphCanvas() {
 
   const onPaneClick = useCallback(() => {
     selectActor(null);
-  }, [selectActor]);
+    selectEntry(null);
+  }, [selectActor, selectEntry]);
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {

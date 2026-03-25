@@ -5,10 +5,12 @@ interface IdpNodeData {
   label: string;
   shortId: string;
   isAnimating?: boolean;
+  isHighlighted?: boolean;
   messageCount?: string;
 }
 
 const FILL = "#D97706";
+const HIGHLIGHT_COLOR = "#3B82F6";
 const HEX_R = 30;
 
 // Hexagon points (flat-top orientation)
@@ -20,7 +22,7 @@ function hexPoints(r: number): string {
 }
 
 function IdpNode({ data }: NodeProps) {
-  const { label, shortId, isAnimating, messageCount = '0:0' } = data as unknown as IdpNodeData;
+  const { label, shortId, isAnimating, isHighlighted, messageCount = '0:0' } = data as unknown as IdpNodeData;
 
   const svgW = HEX_R * 2 + 12;
   const svgH = HEX_R * 2 + 24;
@@ -47,6 +49,16 @@ function IdpNode({ data }: NodeProps) {
               repeatCount="indefinite"
             />
           </polygon>
+        )}
+
+        {isHighlighted && !isAnimating && (
+          <polygon
+            points={hexPoints(HEX_R + 4)}
+            fill="none"
+            stroke={HIGHLIGHT_COLOR}
+            strokeWidth={2.5}
+            strokeDasharray="4 2"
+          />
         )}
 
         {/* Hexagon */}

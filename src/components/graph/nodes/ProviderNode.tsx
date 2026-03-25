@@ -5,14 +5,16 @@ interface ProviderNodeData {
   label: string;
   shortId: string;
   isAnimating?: boolean;
+  isHighlighted?: boolean;
   messageCount?: string;
 }
 
 const FILL = "#DC2626";
+const HIGHLIGHT_COLOR = "#3B82F6";
 const SIZE = 40;
 
 function ProviderNode({ data }: NodeProps) {
-  const { label, shortId, isAnimating, messageCount = '0:0' } = data as unknown as ProviderNodeData;
+  const { label, shortId, isAnimating, isHighlighted, messageCount = '0:0' } = data as unknown as ProviderNodeData;
 
   return (
     <div style={{ position: "relative" }}>
@@ -35,6 +37,16 @@ function ProviderNode({ data }: NodeProps) {
               repeatCount="indefinite"
             />
           </polygon>
+        )}
+
+        {isHighlighted && !isAnimating && (
+          <polygon
+            points={`0,${-SIZE + 2} ${SIZE - 2},0 0,${SIZE - 2} ${-SIZE + 2},0`}
+            fill="none"
+            stroke={HIGHLIGHT_COLOR}
+            strokeWidth={2.5}
+            strokeDasharray="4 2"
+          />
         )}
 
         {/* Diamond */}

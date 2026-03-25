@@ -9,6 +9,7 @@ interface EventLogStore {
   filters: LogFilters;
   activeTab: LogTab;
   isCollapsed: boolean;
+  selectedEntryId: string | null;
 
   addEvent: (event: TrackedEvent) => void;
   addEntry: (entry: LogEntry) => void;
@@ -19,6 +20,7 @@ interface EventLogStore {
   setFilter: (filters: Partial<LogFilters>) => void;
   setActiveTab: (tab: LogTab) => void;
   setCollapsed: (collapsed: boolean) => void;
+  selectEntry: (id: string | null) => void;
 }
 
 export const useEventLogStore = create<EventLogStore>((set) => ({
@@ -27,6 +29,7 @@ export const useEventLogStore = create<EventLogStore>((set) => ({
   filters: { eventType: null, actorId: null, channel: null },
   activeTab: 'events',
   isCollapsed: false,
+  selectedEntryId: null,
 
   addEvent: (event) =>
     set((state) => ({ events: [...state.events, event] })),
@@ -38,12 +41,13 @@ export const useEventLogStore = create<EventLogStore>((set) => ({
     set((state) => ({ entries: [...state.entries, ...entries] })),
 
   clearEvents: () => set({ events: [] }),
-  clearMessages: () => set({ entries: [] }),
-  clearAll: () => set({ events: [], entries: [] }),
+  clearMessages: () => set({ entries: [], selectedEntryId: null }),
+  clearAll: () => set({ events: [], entries: [], selectedEntryId: null }),
 
   setFilter: (filters) =>
     set((state) => ({ filters: { ...state.filters, ...filters } })),
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   setCollapsed: (collapsed) => set({ isCollapsed: collapsed }),
+  selectEntry: (id) => set({ selectedEntryId: id }),
 }));

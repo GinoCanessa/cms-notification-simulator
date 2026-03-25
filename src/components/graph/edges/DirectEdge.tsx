@@ -1,10 +1,11 @@
 import { memo } from 'react';
 import { getBezierPath, type EdgeProps } from '@xyflow/react';
 
-type DirectEdgeData = { isActive?: boolean };
+type DirectEdgeData = { isActive?: boolean; isHighlighted?: boolean };
 
 const IDLE_COLOR = '#0D9488';
 const ACTIVE_COLOR = '#14B8A6';
+const HIGHLIGHT_COLOR = '#3B82F6';
 
 function DirectEdge({
   id,
@@ -27,14 +28,18 @@ function DirectEdge({
 
   const edgeData = data as DirectEdgeData | undefined;
   const isActive = edgeData?.isActive ?? false;
+  const isHighlighted = edgeData?.isHighlighted ?? false;
+
+  const strokeColor = isActive ? ACTIVE_COLOR : isHighlighted ? HIGHLIGHT_COLOR : IDLE_COLOR;
+  const strokeWidth = isActive || isHighlighted ? 2.5 : 2;
 
   return (
     <>
       <path
         id={id}
         d={edgePath}
-        stroke={isActive ? ACTIVE_COLOR : IDLE_COLOR}
-        strokeWidth={isActive ? 2.5 : 2}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
         strokeDasharray="6 4"
         fill="none"
       />

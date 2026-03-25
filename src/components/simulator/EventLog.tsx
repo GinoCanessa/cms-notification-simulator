@@ -61,6 +61,8 @@ export default function EventLog() {
   const setFilter = useEventLogStore((s) => s.setFilter);
   const setActiveTab = useEventLogStore((s) => s.setActiveTab);
   const setCollapsed = useEventLogStore((s) => s.setCollapsed);
+  const selectedEntryId = useEventLogStore((s) => s.selectedEntryId);
+  const selectEntry = useEventLogStore((s) => s.selectEntry);
   const actors = useGraphStore((s) => s.actors);
 
   const [exportOpen, setExportOpen] = useState(false);
@@ -257,10 +259,17 @@ export default function EventLog() {
               <tbody>
                 {filteredEntries.map((entry) => {
                   const pillStyle = getMessagePillStyle(entry.messageType);
+                  const isSelected = entry.id === selectedEntryId;
                   return (
                     <tr
                       key={entry.id}
-                      className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-alt)] transition-colors"
+                      onClick={() => selectEntry(isSelected ? null : entry.id)}
+                      className={`border-b border-[var(--color-border)] cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'bg-[var(--color-brand-light)]'
+                          : 'hover:bg-[var(--color-surface-alt)]'
+                      }`}
+                      style={isSelected ? { boxShadow: 'inset 3px 0 0 var(--color-brand)' } : undefined}
                     >
                       <td className="px-2 py-1 font-mono text-[var(--color-text-tertiary)]">
                         {formatTimestamp(entry.timestamp)}

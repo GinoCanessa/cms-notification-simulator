@@ -5,16 +5,18 @@ interface ClientDelegatedNodeData {
   label: string;
   shortId: string;
   isAnimating?: boolean;
+  isHighlighted?: boolean;
   messageCount?: string;
 }
 
 const FILL = "#7C3AED";
+const HIGHLIGHT_COLOR = "#3B82F6";
 const W = 64;
 const H = 36;
 const RX = 6;
 
 function ClientDelegatedNode({ data }: NodeProps) {
-  const { label, shortId, isAnimating, messageCount = '0:0' } =
+  const { label, shortId, isAnimating, isHighlighted, messageCount = '0:0' } =
     data as unknown as ClientDelegatedNodeData;
 
   return (
@@ -42,6 +44,20 @@ function ClientDelegatedNode({ data }: NodeProps) {
               repeatCount="indefinite"
             />
           </rect>
+        )}
+
+        {isHighlighted && !isAnimating && (
+          <rect
+            x={-(W / 2 + 4)}
+            y={-(H / 2 + 4)}
+            width={W + 8}
+            height={H + 8}
+            rx={RX + 2}
+            fill="none"
+            stroke={HIGHLIGHT_COLOR}
+            strokeWidth={2.5}
+            strokeDasharray="4 2"
+          />
         )}
 
         {/* Rounded rectangle */}

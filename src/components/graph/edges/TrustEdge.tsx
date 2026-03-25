@@ -1,10 +1,11 @@
 import { memo } from 'react';
 import { getBezierPath, type EdgeProps } from '@xyflow/react';
 
-type TrustEdgeData = { isActive?: boolean };
+type TrustEdgeData = { isActive?: boolean; isHighlighted?: boolean };
 
 const IDLE_COLOR = '#CBD5E1';
 const ACTIVE_COLOR = '#D97706';
+const HIGHLIGHT_COLOR = '#3B82F6';
 
 function TrustEdge({
   id,
@@ -27,14 +28,19 @@ function TrustEdge({
 
   const edgeData = data as TrustEdgeData | undefined;
   const isActive = edgeData?.isActive ?? false;
+  const isHighlighted = edgeData?.isHighlighted ?? false;
+
+  const strokeColor = isActive ? ACTIVE_COLOR : isHighlighted ? HIGHLIGHT_COLOR : IDLE_COLOR;
+  const strokeWidth = isActive || isHighlighted ? 2.5 : 2;
 
   return (
     <>
       <path
         id={id}
         d={edgePath}
-        stroke={isActive ? ACTIVE_COLOR : IDLE_COLOR}
-        strokeWidth={isActive ? 2.5 : 2}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        strokeDasharray={isHighlighted && !isActive ? '6 3' : undefined}
         fill="none"
       />
       {isActive && (
