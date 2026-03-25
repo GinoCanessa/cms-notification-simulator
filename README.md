@@ -18,6 +18,7 @@ An interactive simulator for visualizing FHIR Subscription notification delivery
 | Framework | React 19 |
 | Language | TypeScript 5.9 |
 | Build Tool | Vite 8 |
+| Single-File Export | vite-plugin-singlefile |
 | Styling | Tailwind CSS 4 |
 | Graph Visualization | @xyflow/react |
 | State Management | Zustand |
@@ -53,7 +54,9 @@ This starts the Vite dev server with hot module replacement. Open the URL shown 
 npm run build
 ```
 
-Compiles TypeScript and produces an optimized bundle in the `dist/` directory.
+Compiles TypeScript and produces an optimized **single HTML file** at `dist/index.html`. This file inlines all JavaScript, CSS, and the favicon — it is fully self-contained and can be opened directly in a browser with no server required.
+
+> **Tip:** To share the simulator, send `dist/index.html` to the recipient. They can open it from their local filesystem (`file://` protocol) — no web server, no internet connection needed.
 
 ### Preview the production build
 
