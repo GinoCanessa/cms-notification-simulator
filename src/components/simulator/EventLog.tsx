@@ -63,9 +63,18 @@ export default function EventLog() {
   const setCollapsed = useEventLogStore((s) => s.setCollapsed);
   const selectedEntryId = useEventLogStore((s) => s.selectedEntryId);
   const selectEntry = useEventLogStore((s) => s.selectEntry);
+  const selectedEventId = useEventLogStore((s) => s.selectedEventId);
+  const selectEvent = useEventLogStore((s) => s.selectEvent);
   const actors = useGraphStore((s) => s.actors);
 
   const [exportOpen, setExportOpen] = useState(false);
+
+  // Map event IDs to their 1-based display index
+  const eventIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    events.forEach((ev, i) => map.set(ev.id, i + 1));
+    return map;
+  }, [events]);
 
   const filteredEntries = useMemo(() => {
     return entries.filter((e) => {
@@ -209,10 +218,17 @@ export default function EventLog() {
                   const sourceActor = actors.get(ev.sourceActorId);
                   const targetActor = ev.targetActorId ? actors.get(ev.targetActorId) : null;
                   const icon = sourceActor ? ACTOR_TYPE_ICONS[sourceActor.type] : '';
+                  const isSelected = ev.id === selectedEventId;
                   return (
                     <tr
                       key={ev.id}
-                      className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-alt)] transition-colors"
+                      onClick={() => selectEvent(isSelected ? null : ev.id)}
+                      className={`border-b border-[var(--color-border)] cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'bg-[var(--color-brand-light)]'
+                          : 'hover:bg-[var(--color-surface-alt)]'
+                      }`}
+                      style={isSelected ? { boxShadow: 'inset 3px 0 0 var(--color-brand)' } : undefined}
                     >
                       <td className="px-2 py-1 font-mono text-[var(--color-text-tertiary)]">{i + 1}</td>
                       <td className="px-2 py-1">
@@ -248,6 +264,7 @@ export default function EventLog() {
               <thead>
                 <tr className="bg-[var(--color-surface-alt)] text-[var(--color-text-tertiary)] sticky top-0">
                   <th className="text-left px-2 py-1 font-medium">Time</th>
+                  <th className="text-left px-2 py-1 font-medium">Trigger</th>
                   <th className="text-left px-2 py-1 font-medium">Source</th>
                   <th className="text-center px-1 py-1 font-medium">→</th>
                   <th className="text-left px-2 py-1 font-medium">Destination</th>
@@ -273,6 +290,28 @@ export default function EventLog() {
                     >
                       <td className="px-2 py-1 font-mono text-[var(--color-text-tertiary)]">
                         {formatTimestamp(entry.timestamp)}
+                      </td>
+                      <td className="px-2 py-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectEvent(selectedEventId === entry.eventId ? null : entry.eventId);
+                            setActiveTab('events');
+                          }}
+                          className="inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
+                          title="Go to trigger event"
+                        >
+                          <span className="font-mono text-[10px] text-[var(--color-text-tertiary)]">
+                            #{eventIndexMap.get(entry.eventId) ?? '?'}
+                          </span>
+                          <span
+                            className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                            style={{ backgroundColor: 'var(--color-purple-light)', color: 'var(--color-purple)' }}
+                          >
+                            {entry.eventType}
+                          </span>
+                        </button>
                       </td>
                       <td className="px-2 py-1 text-[var(--color-text)]">{entry.from.name}</td>
                       <td className="px-1 py-1 text-center text-[var(--color-text-tertiary)]">→</td>
@@ -304,7 +343,7 @@ export default function EventLog() {
                 })}
                 {filteredEntries.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-[var(--color-text-tertiary)]">
+                    <td colSpan={8} className="px-4 py-6 text-center text-[var(--color-text-tertiary)]">
                       No messages yet. Trigger an event to see message hops.
                     </td>
                   </tr>

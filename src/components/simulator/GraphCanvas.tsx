@@ -79,8 +79,10 @@ export default function GraphCanvas() {
   const messageCounts = useSimulationStore((s) => s.messageCounts);
 
   const selectedEntryId = useEventLogStore((s) => s.selectedEntryId);
+  const selectedEventId = useEventLogStore((s) => s.selectedEventId);
   const logEntries = useEventLogStore((s) => s.entries);
   const selectEntry = useEventLogStore((s) => s.selectEntry);
+  const selectEvent = useEventLogStore((s) => s.selectEvent);
 
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
 
@@ -126,6 +128,21 @@ export default function GraphCanvas() {
     return logEntries.find((e) => e.id === selectedEntryId) ?? null;
   }, [selectedEntryId, logEntries]);
 
+  // Derive highlighted actors and actor-pairs from selected event
+  const eventHighlight = useMemo(() => {
+    if (!selectedEventId) return null;
+    const eventEntries = logEntries.filter((e) => e.eventId === selectedEventId);
+    const actorIds = new Set<string>();
+    const edgePairs = new Set<string>();
+    for (const entry of eventEntries) {
+      actorIds.add(entry.from.id);
+      actorIds.add(entry.to.id);
+      const pair = [entry.from.id, entry.to.id].sort().join('|');
+      edgePairs.add(`${pair}:${entry.channel}`);
+    }
+    return { actorIds, edgePairs };
+  }, [selectedEventId, logEntries]);
+
   const flowNodes: Node[] = useMemo(() => {
     return Array.from(actors.values()).map((actor) => ({
       id: actor.id,
@@ -135,26 +152,36 @@ export default function GraphCanvas() {
         label: actor.name,
         shortId: actor.id.split('-').pop()?.toUpperCase() ?? actor.id,
         isAnimating: animatingNodes.has(actor.id),
-        isHighlighted: selectedEntry != null && (actor.id === selectedEntry.from.id || actor.id === selectedEntry.to.id),
+        isHighlighted:
+          (selectedEntry != null && (actor.id === selectedEntry.from.id || actor.id === selectedEntry.to.id)) ||
+          (eventHighlight != null && eventHighlight.actorIds.has(actor.id)),
         messageCount: (() => {
           const counts = messageCounts.get(actor.id);
           return counts ? `${counts.received}:${counts.sent}` : '0:0';
         })(),
       },
     }));
-  }, [actors, positions, animatingNodes, messageCounts, selectedEntry]);
+  }, [actors, positions, animatingNodes, messageCounts, selectedEntry, eventHighlight]);
 
   const flowEdges: Edge[] = useMemo(() => {
     const result: Edge[] = [];
 
     const isEdgeHighlighted = (source: string, target: string, type: string) => {
-      if (!selectedEntry) return false;
-      const matchesActors =
-        (source === selectedEntry.from.id && target === selectedEntry.to.id) ||
-        (source === selectedEntry.to.id && target === selectedEntry.from.id);
-      if (!matchesActors) return false;
-      if (selectedEntry.channel === 'trust' && type === 'trust') return true;
-      if (selectedEntry.channel === 'direct' && type === 'direct') return true;
+      // Single message entry selection
+      if (selectedEntry) {
+        const matchesActors =
+          (source === selectedEntry.from.id && target === selectedEntry.to.id) ||
+          (source === selectedEntry.to.id && target === selectedEntry.from.id);
+        if (matchesActors) {
+          if (selectedEntry.channel === 'trust' && type === 'trust') return true;
+          if (selectedEntry.channel === 'direct' && type === 'direct') return true;
+        }
+      }
+      // Event selection – highlight all edges used by any message in that event
+      if (eventHighlight) {
+        const pair = [source, target].sort().join('|');
+        if (eventHighlight.edgePairs.has(`${pair}:${type}`)) return true;
+      }
       return false;
     };
 
@@ -215,7 +242,7 @@ export default function GraphCanvas() {
     }
 
     return result;
-  }, [edges, directChannels, providerIdpEdges, animatingEdges, selectedEntry]);
+  }, [edges, directChannels, providerIdpEdges, animatingEdges, selectedEntry, eventHighlight]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -245,7 +272,8 @@ export default function GraphCanvas() {
   const onPaneClick = useCallback(() => {
     selectActor(null);
     selectEntry(null);
-  }, [selectActor, selectEntry]);
+    selectEvent(null);
+  }, [selectActor, selectEntry, selectEvent]);
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {

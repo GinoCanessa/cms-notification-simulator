@@ -224,11 +224,11 @@ export default function ControlsPanel() {
   );
 
   const triggerEventForApproach = useCallback(
-    async (eventType: EventType, sourceId: string, forApproach: 'routed' | 'direct', targetId?: string, recordEvent = true) => {
+    async (eventType: EventType, sourceId: string, forApproach: 'routed' | 'direct', targetId?: string, recordEvent = true, existingEventId?: string) => {
       const { actors: currentActors, edges: currentEdges, directChannels: currentDC } = useGraphStore.getState();
       const graph = { actors: currentActors, edges: currentEdges };
       const event = {
-        id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        id: existingEventId ?? `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         type: eventType,
         sourceActorId: sourceId,
         targetActorId: targetId,
@@ -331,12 +331,10 @@ export default function ControlsPanel() {
       if (isPlaying) return;
       playbackAbortRef.current = false;
       setPlaying(true);
-      resetMessageCounts();
-      clearMessages();
       await triggerEventForApproach(eventType, sourceId, approach, targetId, true);
       setPlaying(false);
     },
-    [isPlaying, approach, triggerEventForApproach, setPlaying, resetMessageCounts, clearMessages],
+    [isPlaying, approach, triggerEventForApproach, setPlaying],
   );
 
   const replayAllEvents = useCallback(
@@ -355,7 +353,7 @@ export default function ControlsPanel() {
 
       for (const ev of events) {
         if (playbackAbortRef.current) break;
-        await triggerEventForApproach(ev.eventType, ev.sourceActorId, targetApproach, ev.targetActorId, false);
+        await triggerEventForApproach(ev.eventType, ev.sourceActorId, targetApproach, ev.targetActorId, false, ev.id);
         if (!playbackAbortRef.current && events.indexOf(ev) < events.length - 1) {
           await new Promise((r) => setTimeout(r, 300 / useSimulationStore.getState().speed));
         }
@@ -470,6 +468,18 @@ export default function ControlsPanel() {
   const eventCount = useEventLogStore((s) => s.events.length);
   const canCompare = eventCount > 0;
 
+  const handleApproachChange = useCallback(
+    (newApproach: 'routed' | 'direct') => {
+      if (newApproach === useSimulationStore.getState().approach) return;
+      setApproach(newApproach);
+      const events = useEventLogStore.getState().events;
+      if (events.length > 0) {
+        replayAllEvents(newApproach);
+      }
+    },
+    [setApproach, replayAllEvents],
+  );
+
   return (
     <div
       className="w-60 flex-shrink-0 flex flex-col overflow-y-auto border-r
@@ -482,7 +492,7 @@ export default function ControlsPanel() {
         </label>
         <div className="flex mt-1 rounded overflow-hidden border border-[var(--color-border)]">
           <button
-            onClick={() => setApproach('routed')}
+            onClick={() => handleApproachChange('routed')}
             className={`flex-1 text-xs py-1 font-medium transition-colors ${
               approach === 'routed'
                 ? 'bg-[var(--color-brand)] text-white'
@@ -492,7 +502,7 @@ export default function ControlsPanel() {
             Routed
           </button>
           <button
-            onClick={() => setApproach('direct')}
+            onClick={() => handleApproachChange('direct')}
             className={`flex-1 text-xs py-1 font-medium transition-colors ${
               approach === 'direct'
                 ? 'bg-[var(--color-brand)] text-white'

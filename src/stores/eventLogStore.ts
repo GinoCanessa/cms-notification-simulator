@@ -10,6 +10,7 @@ interface EventLogStore {
   activeTab: LogTab;
   isCollapsed: boolean;
   selectedEntryId: string | null;
+  selectedEventId: string | null;
 
   addEvent: (event: TrackedEvent) => void;
   addEntry: (entry: LogEntry) => void;
@@ -21,6 +22,7 @@ interface EventLogStore {
   setActiveTab: (tab: LogTab) => void;
   setCollapsed: (collapsed: boolean) => void;
   selectEntry: (id: string | null) => void;
+  selectEvent: (id: string | null) => void;
 }
 
 export const useEventLogStore = create<EventLogStore>((set) => ({
@@ -30,6 +32,7 @@ export const useEventLogStore = create<EventLogStore>((set) => ({
   activeTab: 'events',
   isCollapsed: false,
   selectedEntryId: null,
+  selectedEventId: null,
 
   addEvent: (event) =>
     set((state) => ({ events: [...state.events, event] })),
@@ -42,12 +45,13 @@ export const useEventLogStore = create<EventLogStore>((set) => ({
 
   clearEvents: () => set({ events: [] }),
   clearMessages: () => set({ entries: [], selectedEntryId: null }),
-  clearAll: () => set({ events: [], entries: [], selectedEntryId: null }),
+  clearAll: () => set({ events: [], entries: [], selectedEntryId: null, selectedEventId: null }),
 
   setFilter: (filters) =>
     set((state) => ({ filters: { ...state.filters, ...filters } })),
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   setCollapsed: (collapsed) => set({ isCollapsed: collapsed }),
-  selectEntry: (id) => set({ selectedEntryId: id }),
+  selectEntry: (id) => set({ selectedEntryId: id, selectedEventId: null }),
+  selectEvent: (id) => set({ selectedEventId: id, selectedEntryId: null }),
 }));
