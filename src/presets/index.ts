@@ -21,6 +21,7 @@ export const simplePreset: Preset = {
     { id: 'e-p1-na', sourceId: 'provider-1', targetId: 'network-a', edgeType: 'trust' },
     { id: 'e-na-c1', sourceId: 'network-a', targetId: 'client-1', edgeType: 'trust' },
     { id: 'e-c1-idp', sourceId: 'client-1', targetId: 'idp-1', edgeType: 'identity' },
+    { id: 'e-idp1-na', sourceId: 'idp-1', targetId: 'network-a', edgeType: 'trust' },
   ],
   positions: {
     'provider-1': { x: 100, y: 250 },
@@ -50,6 +51,7 @@ export const twoNetworksPreset: Preset = {
     { id: 'e-nb-c2', sourceId: 'network-b', targetId: 'client-2', edgeType: 'trust' },
     { id: 'e-c1-idp', sourceId: 'client-1', targetId: 'idp-1', edgeType: 'identity' },
     { id: 'e-c2-idp', sourceId: 'client-2', targetId: 'idp-1', edgeType: 'identity' },
+    { id: 'e-idp1-nb', sourceId: 'idp-1', targetId: 'network-b', edgeType: 'trust' },
   ],
   positions: {
     'provider-1': { x: 80, y: 150 },
@@ -91,6 +93,9 @@ export const hubAndSpokePreset: Preset = {
     { id: 'e-c1-idp', sourceId: 'client-1', targetId: 'idp-1', edgeType: 'identity' },
     { id: 'e-c2-idp', sourceId: 'client-2', targetId: 'idp-1', edgeType: 'identity' },
     { id: 'e-c3-idp', sourceId: 'client-3', targetId: 'idp-1', edgeType: 'identity' },
+    { id: 'e-idp1-nn', sourceId: 'idp-1', targetId: 'network-n', edgeType: 'trust' },
+    { id: 'e-idp1-ns', sourceId: 'idp-1', targetId: 'network-s', edgeType: 'trust' },
+    { id: 'e-idp1-ne', sourceId: 'idp-1', targetId: 'network-e', edgeType: 'trust' },
   ],
   positions: {
     'idp-1': { x: 420, y: 20 },
@@ -147,6 +152,10 @@ export const complexPreset: Preset = {
     { id: 'e-c2-idp1', sourceId: 'client-2', targetId: 'idp-1', edgeType: 'identity' },
     { id: 'e-c3-idp2', sourceId: 'client-3', targetId: 'idp-2', edgeType: 'identity' },
     { id: 'e-c4-idp2', sourceId: 'client-4', targetId: 'idp-2', edgeType: 'identity' },
+    { id: 'e-idp1-na', sourceId: 'idp-1', targetId: 'network-a', edgeType: 'trust' },
+    { id: 'e-idp1-nb', sourceId: 'idp-1', targetId: 'network-b', edgeType: 'trust' },
+    { id: 'e-idp2-nc', sourceId: 'idp-2', targetId: 'network-c', edgeType: 'trust' },
+    { id: 'e-idp2-nd', sourceId: 'idp-2', targetId: 'network-d', edgeType: 'trust' },
   ],
   positions: {
     'idp-1': { x: 200, y: 20 },

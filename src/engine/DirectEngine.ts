@@ -1,7 +1,7 @@
-import type { SimulationEvent, NotificationHop, DirectChannel } from '../types';
+import type { SimulationEvent, NotificationHop, MessageType, DirectChannel } from '../types';
 import type { GraphState } from './PathFinder';
 import { computeRoutedFlow } from './RoutedEngine';
-import { findReachableClients, findReachableProviders } from './PathFinder';
+import { findReachableClients, findReachableProviders, findClientIdp } from './PathFinder';
 
 let hopCounter = 1000;
 
@@ -10,9 +10,10 @@ function makeDirectHop(
   step: number,
   fromId: string,
   toId: string,
-  messageType: 'direct-channel-handshake' | 'direct-channel-confirm' | 'encounter-notification',
+  messageType: MessageType,
   timestamp: number,
   parallelGroup?: number,
+  channel: 'trust' | 'direct' = 'direct',
 ): NotificationHop {
   return {
     id: `dhop-${++hopCounter}`,
@@ -21,10 +22,20 @@ function makeDirectHop(
     fromId,
     toId,
     messageType,
-    channel: 'direct',
+    channel,
     timestamp,
     parallelGroup,
   };
+}
+
+/** Collect unique IDP IDs for a set of clients */
+function getUniqueIdps(clientIds: string[], graph: GraphState): string[] {
+  const seen = new Set<string>();
+  for (const clientId of clientIds) {
+    const idpId = findClientIdp(clientId, graph);
+    if (idpId) seen.add(idpId);
+  }
+  return Array.from(seen);
 }
 
 export function computeDirectFlow(
@@ -42,7 +53,7 @@ export function computeDirectFlow(
       );
       if (providerChannels.length > 0) {
         let step = 1;
-        let ts = 0;
+        const ts = 0;
         const parallelGroup = 1;
         return providerChannels.map((ch) =>
           makeDirectHop(event.id, step++, ch.providerId, ch.clientId, 'encounter-notification', ts, parallelGroup),
@@ -55,53 +66,131 @@ export function computeDirectFlow(
     case 'new-care-relationship': {
       // Discovery flows through trust graph (same as routed)
       const routedHops = computeRoutedFlow(event, graph);
-      // Client receives notification and requests a direct channel from the provider
       const paths = findReachableClients(event.sourceActorId, graph);
       let step = routedHops.length > 0 ? routedHops[routedHops.length - 1].step + 1 : 1;
       let ts = routedHops.length > 0 ? routedHops[routedHops.length - 1].timestamp + 500 : 0;
-      const handshakeGroup = step;
 
+      // Phase 1: Clients send handshake to provider
+      const handshakeGroup = step;
+      const clientIds: string[] = [];
       for (const path of paths) {
         const clientId = path.actorIds[path.actorIds.length - 1];
+        clientIds.push(clientId);
         routedHops.push(makeDirectHop(event.id, step, clientId, event.sourceActorId, 'direct-channel-handshake', ts, handshakeGroup));
+      }
+      step++;
+      ts += 500;
+
+      // Phase 2: Provider verifies identity with each unique IDP
+      const idpIds = getUniqueIdps(clientIds, graph);
+      if (idpIds.length > 0) {
+        const verifyGroup = step;
+        for (const idpId of idpIds) {
+          routedHops.push(makeDirectHop(event.id, step, event.sourceActorId, idpId, 'idp-identity-verification', ts, verifyGroup, 'trust'));
+        }
         step++;
-        ts += 300;
+        ts += 500;
+        const confirmIdpGroup = step;
+        for (const idpId of idpIds) {
+          routedHops.push(makeDirectHop(event.id, step, idpId, event.sourceActorId, 'idp-identity-confirmed', ts, confirmIdpGroup, 'trust'));
+        }
+        step++;
+        ts += 500;
+      }
+
+      // Phase 3: Provider confirms direct channel to all clients
+      const confirmGroup = step;
+      for (const clientId of clientIds) {
+        routedHops.push(makeDirectHop(event.id, step, event.sourceActorId, clientId, 'direct-channel-confirm', ts, confirmGroup));
       }
       return routedHops;
     }
 
-    case 'new-client-registration': {
+    case 'new-client-registration':{
       const routedHops = computeRoutedFlow(event, graph);
       const paths = findReachableProviders(event.sourceActorId, graph);
       let step = routedHops.length > 0 ? routedHops[routedHops.length - 1].step + 1 : 1;
       let ts = routedHops.length > 0 ? routedHops[routedHops.length - 1].timestamp + 500 : 0;
-      const handshakeGroup = step;
 
+      // Phase 1: Providers verify identity of new client with its IDP
+      const idpIds = getUniqueIdps([event.sourceActorId], graph);
+      const providerIds: string[] = [];
       for (const path of paths) {
-        const providerId = path.actorIds[path.actorIds.length - 1];
+        providerIds.push(path.actorIds[path.actorIds.length - 1]);
+      }
+      if (idpIds.length > 0 && providerIds.length > 0) {
+        const verifyGroup = step;
+        for (const providerId of providerIds) {
+          for (const idpId of idpIds) {
+            routedHops.push(makeDirectHop(event.id, step, providerId, idpId, 'idp-identity-verification', ts, verifyGroup, 'trust'));
+          }
+        }
+        step++;
+        ts += 500;
+        const confirmIdpGroup = step;
+        for (const providerId of providerIds) {
+          for (const idpId of idpIds) {
+            routedHops.push(makeDirectHop(event.id, step, idpId, providerId, 'idp-identity-confirmed', ts, confirmIdpGroup, 'trust'));
+          }
+        }
+        step++;
+        ts += 500;
+      }
+
+      // Phase 2: Providers send handshake to client
+      const handshakeGroup = step;
+      for (const providerId of providerIds) {
         routedHops.push(makeDirectHop(event.id, step, providerId, event.sourceActorId, 'direct-channel-handshake', ts, handshakeGroup));
-        step++;
-        ts += 300;
-        routedHops.push(makeDirectHop(event.id, step, event.sourceActorId, providerId, 'direct-channel-confirm', ts, handshakeGroup + 50));
-        step++;
-        ts += 300;
+      }
+      step++;
+      ts += 500;
+
+      // Phase 3: Client confirms to all providers
+      const confirmGroup = step;
+      for (const providerId of providerIds) {
+        routedHops.push(makeDirectHop(event.id, step, event.sourceActorId, providerId, 'direct-channel-confirm', ts, confirmGroup));
       }
       return routedHops;
     }
 
     case 'new-provider-registration': {
       const routedHops = computeRoutedFlow(event, graph);
-      // Client receives notification and requests a direct channel from the provider
       const paths = findReachableClients(event.sourceActorId, graph);
       let step = routedHops.length > 0 ? routedHops[routedHops.length - 1].step + 1 : 1;
       let ts = routedHops.length > 0 ? routedHops[routedHops.length - 1].timestamp + 500 : 0;
-      const handshakeGroup = step;
 
+      // Phase 1: Clients send handshake to new provider
+      const handshakeGroup = step;
+      const clientIds: string[] = [];
       for (const path of paths) {
         const clientId = path.actorIds[path.actorIds.length - 1];
+        clientIds.push(clientId);
         routedHops.push(makeDirectHop(event.id, step, clientId, event.sourceActorId, 'direct-channel-handshake', ts, handshakeGroup));
+      }
+      step++;
+      ts += 500;
+
+      // Phase 2: Provider verifies identity with each unique IDP
+      const idpIds = getUniqueIdps(clientIds, graph);
+      if (idpIds.length > 0) {
+        const verifyGroup = step;
+        for (const idpId of idpIds) {
+          routedHops.push(makeDirectHop(event.id, step, event.sourceActorId, idpId, 'idp-identity-verification', ts, verifyGroup, 'trust'));
+        }
         step++;
-        ts += 300;
+        ts += 500;
+        const confirmIdpGroup = step;
+        for (const idpId of idpIds) {
+          routedHops.push(makeDirectHop(event.id, step, idpId, event.sourceActorId, 'idp-identity-confirmed', ts, confirmIdpGroup, 'trust'));
+        }
+        step++;
+        ts += 500;
+      }
+
+      // Phase 3: Provider confirms direct channel to all clients
+      const confirmGroup = step;
+      for (const clientId of clientIds) {
+        routedHops.push(makeDirectHop(event.id, step, event.sourceActorId, clientId, 'direct-channel-confirm', ts, confirmGroup));
       }
       return routedHops;
     }

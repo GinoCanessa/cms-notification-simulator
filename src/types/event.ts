@@ -35,6 +35,8 @@ export type MessageType =
   | 'client-removed'
   | 'client-removed-relay'
   | 'close-direct-channel'
+  | 'idp-identity-verification'
+  | 'idp-identity-confirmed'
   | 'initial-data-bundle';
 
 export interface NotificationHop {

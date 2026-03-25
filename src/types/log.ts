@@ -1,4 +1,14 @@
-import type { MessageType } from './event';
+import type { EventType, MessageType } from './event';
+
+export interface TrackedEvent {
+  id: string;
+  eventType: EventType;
+  sourceActorId: string;
+  sourceActorName: string;
+  targetActorId?: string;
+  targetActorName?: string;
+  timestamp: number;
+}
 
 export interface LogEntry {
   id: string;

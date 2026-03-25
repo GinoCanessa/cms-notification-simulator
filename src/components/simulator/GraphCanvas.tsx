@@ -50,6 +50,7 @@ function isValidConnection(sourceType: ActorType, targetType: ActorType): boolea
     'network|network',
     'client-delegated|idp',
     'client-patient|idp',
+    'idp|network',
   ]);
   return allowed.has(pair);
 }
@@ -68,6 +69,7 @@ export default function GraphCanvas() {
   const actors = useGraphStore((s) => s.actors);
   const edges = useGraphStore((s) => s.edges);
   const directChannels = useGraphStore((s) => s.directChannels);
+  const providerIdpEdges = useGraphStore((s) => s.providerIdpEdges);
   const selectActor = useGraphStore((s) => s.selectActor);
   const addEdge = useGraphStore((s) => s.addEdge);
 
@@ -160,8 +162,21 @@ export default function GraphCanvas() {
       }
     }
 
+    // Provider→IDP trust edges (dynamic, Direct approach only)
+    for (const edge of providerIdpEdges.values()) {
+      if (!edges.has(edge.id)) {
+        result.push({
+          id: edge.id,
+          source: edge.sourceId,
+          target: edge.targetId,
+          type: 'trust',
+          data: { isActive: animatingEdges.has(edge.id) },
+        });
+      }
+    }
+
     return result;
-  }, [edges, directChannels, animatingEdges]);
+  }, [edges, directChannels, providerIdpEdges, animatingEdges]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {

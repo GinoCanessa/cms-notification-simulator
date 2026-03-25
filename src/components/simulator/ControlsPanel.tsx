@@ -25,7 +25,7 @@ import {
 } from '../../types';
 import { computeRoutedFlow } from '../../engine/RoutedEngine';
 import { computeDirectFlow, getNewDirectChannels } from '../../engine/DirectEngine';
-import { computeAllDirectChannels } from '../../engine/PathFinder';
+import { computeAllDirectChannels, computeProviderIdpTrustEdges } from '../../engine/PathFinder';
 
 interface AddActorForm {
   type: ActorType;
@@ -82,11 +82,12 @@ export default function ControlsPanel() {
   const addDirectChannel = useGraphStore((s) => s.addDirectChannel);
   const clearDirectChannels = useGraphStore((s) => s.clearDirectChannels);
   const setDirectChannels = useGraphStore((s) => s.setDirectChannels);
+  const setProviderIdpEdges = useGraphStore((s) => s.setProviderIdpEdges);
+  const clearProviderIdpEdges = useGraphStore((s) => s.clearProviderIdpEdges);
 
   const approach = useSimulationStore((s) => s.approach);
   const speed = useSimulationStore((s) => s.speed);
   const isPlaying = useSimulationStore((s) => s.isPlaying);
-  const pendingHops = useSimulationStore((s) => s.pendingHops);
   const compare = useSimulationStore((s) => s.compare);
   const setApproach = useSimulationStore((s) => s.setApproach);
   const setSpeed = useSimulationStore((s) => s.setSpeed);
@@ -101,7 +102,9 @@ export default function ControlsPanel() {
   const simulationReset = useSimulationStore((s) => s.reset);
 
   const addEntries = useEventLogStore((s) => s.addEntries);
-  const clearLog = useEventLogStore((s) => s.clearLog);
+  const addEvent = useEventLogStore((s) => s.addEvent);
+  const clearAll = useEventLogStore((s) => s.clearAll);
+  const clearMessages = useEventLogStore((s) => s.clearMessages);
   const incrementMessageCounts = useSimulationStore((s) => s.incrementMessageCounts);
   const resetMessageCounts = useSimulationStore((s) => s.resetMessageCounts);
 
@@ -110,6 +113,7 @@ export default function ControlsPanel() {
   const [eventSource, setEventSource] = useState<string>('');
   const [networkTarget, setNetworkTarget] = useState<string>('');
   const compareAbortRef = useRef(false);
+  const playbackAbortRef = useRef(false);
 
   const actorList = useMemo(() => Array.from(actors.values()), [actors]);
   const networks = useMemo(() => actorList.filter((a) => a.type === 'network'), [actorList]);
@@ -122,10 +126,13 @@ export default function ControlsPanel() {
     if (currentApproach === 'direct') {
       const channels = computeAllDirectChannels({ actors: a, edges: e });
       setDirectChannels(channels);
+      const idpEdges = computeProviderIdpTrustEdges(channels, { actors: a, edges: e });
+      setProviderIdpEdges(idpEdges);
     } else {
       clearDirectChannels();
+      clearProviderIdpEdges();
     }
-  }, [setDirectChannels, clearDirectChannels]);
+  }, [setDirectChannels, clearDirectChannels, setProviderIdpEdges, clearProviderIdpEdges]);
 
   // Automatically sync direct channels when approach or graph topology changes
   useEffect(() => {
@@ -135,7 +142,7 @@ export default function ControlsPanel() {
   // Find the edge between two actors (reads fresh state to work during animations)
   const findEdgeId = useCallback(
     (fromId: string, toId: string): string | null => {
-      const { edges: currentEdges, directChannels: currentDC } = useGraphStore.getState();
+      const { edges: currentEdges, directChannels: currentDC, providerIdpEdges: currentIdpEdges } = useGraphStore.getState();
       for (const edge of currentEdges.values()) {
         if (
           (edge.sourceId === fromId && edge.targetId === toId) ||
@@ -152,6 +159,14 @@ export default function ControlsPanel() {
           return `dc-${dc.providerId}-${dc.clientId}`;
         }
       }
+      for (const edge of currentIdpEdges.values()) {
+        if (
+          (edge.sourceId === fromId && edge.targetId === toId) ||
+          (edge.sourceId === toId && edge.targetId === fromId)
+        ) {
+          return edge.id;
+        }
+      }
       return null;
     },
     [],
@@ -159,7 +174,6 @@ export default function ControlsPanel() {
 
   const runAnimation = useCallback(
     async (hops: NotificationHop[]) => {
-      setPlaying(true);
       const currentSpeed = useSimulationStore.getState().speed;
       const hopDuration = 500 / currentSpeed;
 
@@ -175,6 +189,7 @@ export default function ControlsPanel() {
       }
 
       for (const group of groups) {
+        if (playbackAbortRef.current) break;
         // Collect unique sender and receiver IDs involved in this group
         const senderIds: string[] = [];
         const receiverIds: string[] = [];
@@ -200,26 +215,33 @@ export default function ControlsPanel() {
           removeAnimatingNode(hop.toId);
         }
       }
-
-      setPlaying(false);
     },
-    [findEdgeId, addAnimatingEdge, removeAnimatingEdge, addAnimatingNode, removeAnimatingNode, setPlaying, incrementMessageCounts],
+    [findEdgeId, addAnimatingEdge, removeAnimatingEdge, addAnimatingNode, removeAnimatingNode, incrementMessageCounts],
   );
 
   const triggerEventForApproach = useCallback(
-    async (eventType: EventType, sourceId: string, forApproach: 'routed' | 'direct', targetId?: string) => {
+    async (eventType: EventType, sourceId: string, forApproach: 'routed' | 'direct', targetId?: string, recordEvent = true) => {
       const { actors: currentActors, edges: currentEdges, directChannels: currentDC } = useGraphStore.getState();
       const graph = { actors: currentActors, edges: currentEdges };
       const event = {
-        id: `evt-${Date.now()}`,
+        id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         type: eventType,
         sourceActorId: sourceId,
         targetActorId: targetId,
         timestamp: Date.now(),
       };
 
-      // Reset message counts at the start of each workflow
-      resetMessageCounts();
+      if (recordEvent) {
+        addEvent({
+          id: event.id,
+          eventType,
+          sourceActorId: sourceId,
+          sourceActorName: currentActors.get(sourceId)?.name || sourceId,
+          targetActorId: targetId,
+          targetActorName: targetId ? (currentActors.get(targetId)?.name || targetId) : undefined,
+          timestamp: event.timestamp,
+        });
+      }
 
       const hops =
         forApproach === 'routed'
@@ -256,19 +278,52 @@ export default function ControlsPanel() {
       if (forApproach === 'direct') {
         const newChannels = getNewDirectChannels(event, graph);
         newChannels.forEach((ch) => addDirectChannel(ch));
+        const allChannels = [...Array.from(currentDC.values()), ...newChannels];
+        const idpEdges = computeProviderIdpTrustEdges(allChannels, graph);
+        setProviderIdpEdges(idpEdges);
       }
 
       await runAnimation(hops);
     },
-    [addEntries, setActiveHops, setPendingHops, addDirectChannel, runAnimation, resetMessageCounts],
+    [addEntries, addEvent, setActiveHops, setPendingHops, addDirectChannel, setProviderIdpEdges, runAnimation],
   );
 
   const triggerEvent = useCallback(
-    (eventType: EventType, sourceId: string, targetId?: string) => {
+    async (eventType: EventType, sourceId: string, targetId?: string) => {
       if (isPlaying) return;
-      triggerEventForApproach(eventType, sourceId, approach, targetId);
+      playbackAbortRef.current = false;
+      setPlaying(true);
+      resetMessageCounts();
+      clearMessages();
+      await triggerEventForApproach(eventType, sourceId, approach, targetId, true);
+      setPlaying(false);
     },
-    [isPlaying, approach, triggerEventForApproach],
+    [isPlaying, approach, triggerEventForApproach, setPlaying, resetMessageCounts, clearMessages],
+  );
+
+  const replayAllEvents = useCallback(
+    async (forApproach?: 'routed' | 'direct') => {
+      const events = useEventLogStore.getState().events;
+      if (events.length === 0) return;
+
+      playbackAbortRef.current = false;
+      const targetApproach = forApproach ?? useSimulationStore.getState().approach;
+      resetMessageCounts();
+      clearMessages();
+      syncDirectChannelsNow();
+      setPlaying(true);
+
+      for (const ev of events) {
+        if (playbackAbortRef.current) break;
+        await triggerEventForApproach(ev.eventType, ev.sourceActorId, targetApproach, ev.targetActorId, false);
+        if (!playbackAbortRef.current && events.indexOf(ev) < events.length - 1) {
+          await new Promise((r) => setTimeout(r, 300 / useSimulationStore.getState().speed));
+        }
+      }
+
+      setPlaying(false);
+    },
+    [triggerEventForApproach, resetMessageCounts, clearMessages, syncDirectChannelsNow, setPlaying],
   );
 
   const handleAddActorSubmit = useCallback(() => {
@@ -302,60 +357,56 @@ export default function ControlsPanel() {
     if (hasNetwork && !isPlaying) {
       syncDirectChannelsNow();
       const currentApproach = useSimulationStore.getState().approach;
-      if (actor.type === 'provider') {
-        triggerEventForApproach('new-care-relationship', id, currentApproach);
-      } else if (actor.type === 'client-patient' || actor.type === 'client-delegated') {
-        triggerEventForApproach('new-client-registration', id, currentApproach);
-      }
+      playbackAbortRef.current = false;
+      setPlaying(true);
+      resetMessageCounts();
+      clearMessages();
+      const triggerAndFinish = async () => {
+        if (actor.type === 'provider') {
+          await triggerEventForApproach('new-care-relationship', id, currentApproach);
+        } else if (actor.type === 'client-patient' || actor.type === 'client-delegated') {
+          await triggerEventForApproach('new-client-registration', id, currentApproach);
+        }
+        setPlaying(false);
+      };
+      triggerAndFinish();
     }
-  }, [addForm, addActor, addEdge, isPlaying, syncDirectChannelsNow, triggerEventForApproach]);
+  }, [addForm, addActor, addEdge, isPlaying, syncDirectChannelsNow, triggerEventForApproach, setPlaying, resetMessageCounts, clearMessages]);
 
   const needsNetwork = addForm
     ? ['client-patient', 'client-delegated', 'provider'].includes(addForm.type)
     : false;
 
   const startCompareLoop = useCallback(() => {
-    if (!eventSource) return;
-    const sourceActor = actors.get(eventSource);
-    if (!sourceActor) return;
-
-    // Determine which event type to use based on actor type
-    let eventType: EventType;
-    if (sourceActor.type === 'provider') {
-      eventType = 'encounter-update';
-    } else if (sourceActor.type === 'client-patient' || sourceActor.type === 'client-delegated') {
-      eventType = 'new-client-registration';
-    } else if (sourceActor.type === 'network') {
-      if (!networkTarget) return;
-      eventType = 'new-network-peer';
-    } else {
-      return;
-    }
+    const events = useEventLogStore.getState().events;
+    if (events.length === 0) return;
 
     compareAbortRef.current = false;
+    playbackAbortRef.current = false;
     setCompare({
       active: true,
-      eventType,
-      sourceId: eventSource,
-      targetId: sourceActor.type === 'network' ? networkTarget : undefined,
+      eventType: null,
+      sourceId: '',
       currentApproach: 'routed',
     });
     setApproach('routed');
-  }, [eventSource, networkTarget, actors, setCompare, setApproach]);
+  }, [setCompare, setApproach]);
 
   const stopCompareLoop = useCallback(() => {
     compareAbortRef.current = true;
+    playbackAbortRef.current = true;
     setCompare({ active: false });
     setPlaying(false);
   }, [setCompare, setPlaying]);
 
-  // Run the compare loop when active
+  // Run the compare loop when active — replays all events, alternating approaches
   useEffect(() => {
-    if (!compare.active || !compare.eventType || !compare.sourceId) return;
-    if (isPlaying) return; // wait for current animation to finish
-
-    // If aborted, bail out
+    if (!compare.active) return;
+    if (isPlaying) return;
     if (compareAbortRef.current) return;
+
+    const events = useEventLogStore.getState().events;
+    if (events.length === 0) return;
 
     const currentApproach = compare.currentApproach;
     const pauseMs = 1500 / useSimulationStore.getState().speed;
@@ -364,17 +415,9 @@ export default function ControlsPanel() {
       if (compareAbortRef.current || !useSimulationStore.getState().compare.active) return;
 
       setApproach(currentApproach);
-      syncDirectChannelsNow();
-      setCompare({ currentApproach });
+      await replayAllEvents(currentApproach);
 
-      await triggerEventForApproach(
-        compare.eventType!,
-        compare.sourceId,
-        currentApproach,
-        compare.targetId,
-      );
-
-      // After animation completes, flip approach for next iteration
+      // After replay completes, flip approach for next iteration
       if (!compareAbortRef.current && useSimulationStore.getState().compare.active) {
         const nextApproach = currentApproach === 'routed' ? 'direct' : 'routed';
         setCompare({ currentApproach: nextApproach });
@@ -382,10 +425,10 @@ export default function ControlsPanel() {
     }, pauseMs);
 
     return () => clearTimeout(timer);
-  }, [compare.active, compare.eventType, compare.sourceId, compare.targetId, compare.currentApproach, isPlaying, setApproach, setCompare, triggerEventForApproach, syncDirectChannelsNow]);
+  }, [compare.active, compare.currentApproach, isPlaying, setApproach, setCompare, replayAllEvents]);
 
-  const hasSource = !!eventSource && !!actors.get(eventSource);
-  const canCompare = hasSource && (actors.get(eventSource)?.type !== 'network' || !!networkTarget);
+  const eventCount = useEventLogStore((s) => s.events.length);
+  const canCompare = eventCount > 0;
 
   return (
     <div
@@ -626,28 +669,37 @@ export default function ControlsPanel() {
               <SkipBack size={14} />
             </button>
             <button
-              disabled={pendingHops.length === 0 && !isPlaying}
-              onClick={() => setPlaying(!isPlaying)}
+              disabled={eventCount === 0 && !isPlaying}
+              onClick={() => {
+                if (isPlaying) {
+                  playbackAbortRef.current = true;
+                  compareAbortRef.current = true;
+                  setPlaying(false);
+                } else {
+                  replayAllEvents();
+                }
+              }}
               className={`p-2 rounded-full transition-colors ${
-                pendingHops.length === 0 && !isPlaying
+                eventCount === 0 && !isPlaying
                   ? 'bg-[var(--color-border)] text-[var(--color-text-tertiary)] cursor-not-allowed'
                   : 'bg-[var(--color-brand)] text-white hover:bg-[var(--color-brand-dark)]'
               }`}
-              title={isPlaying ? 'Pause' : 'Play'}
+              title={isPlaying ? 'Stop' : 'Replay all events'}
             >
               {isPlaying ? <Pause size={14} /> : <Play size={14} />}
             </button>
             <button
               className="p-1.5 rounded hover:bg-[var(--color-surface-alt)] text-[var(--color-text-secondary)]
-                transition-colors"
+                transition-colors opacity-30 cursor-not-allowed"
               title="Step Forward"
+              disabled
             >
               <SkipForward size={14} />
             </button>
           </div>
 
           <button
-            onClick={() => { stopCompareLoop(); simulationReset(); clearLog(); }}
+            onClick={() => { stopCompareLoop(); simulationReset(); clearAll(); }}
             disabled={isPlaying}
             className={`w-full flex items-center justify-center gap-1.5 text-xs px-2 py-1.5 rounded
               border transition-colors ${
@@ -683,7 +735,7 @@ export default function ControlsPanel() {
             )}
             {!compare.active && (
               <div className="mt-1 text-[10px] text-center text-[var(--color-text-tertiary)]">
-                {canCompare ? 'Auto-loop between Routed & Direct' : 'Select a source actor first'}
+                {canCompare ? 'Auto-loop between Routed & Direct' : 'Trigger events first to compare'}
               </div>
             )}
           </div>

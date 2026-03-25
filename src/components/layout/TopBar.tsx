@@ -1,15 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Layers, Upload, Download } from 'lucide-react';
-import { useSimulationStore } from '../../stores/simulationStore';
 import { useGraphStore } from '../../stores/graphStore';
 import { allPresets } from '../../presets';
 import { ThemeToggle } from '../shared/ThemeToggle';
 
 export function TopBar() {
-  const approach = useSimulationStore((s) => s.approach);
-  const setApproach = useSimulationStore((s) => s.setApproach);
-
   const [presetOpen, setPresetOpen] = useState(false);
   const presetRef = useRef<HTMLDivElement>(null);
 
@@ -98,31 +94,8 @@ export function TopBar() {
         </nav>
       </div>
 
-      {/* Center: Approach toggle */}
-      <div className="flex items-center rounded-md p-0.5" style={{ background: 'rgba(255,255,255,.12)' }}>
-        <button
-          onClick={() => setApproach('routed')}
-          className={`text-xs px-3 py-1 rounded cursor-pointer transition-colors ${
-            approach === 'routed'
-              ? 'text-white font-medium'
-              : 'text-white/60 hover:text-white/80'
-          }`}
-          style={approach === 'routed' ? { background: 'rgba(255,255,255,.2)' } : undefined}
-        >
-          Routed
-        </button>
-        <button
-          onClick={() => setApproach('direct')}
-          className={`text-xs px-3 py-1 rounded cursor-pointer transition-colors ${
-            approach === 'direct'
-              ? 'text-white font-medium'
-              : 'text-white/60 hover:text-white/80'
-          }`}
-          style={approach === 'direct' ? { background: 'rgba(255,255,255,.2)' } : undefined}
-        >
-          Direct
-        </button>
-      </div>
+      {/* Center: spacer */}
+      <div />
 
       {/* Right: Preset, Import/Export, Theme */}
       <div className="flex items-center gap-2">

@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Download, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { useEventLogStore } from '../../stores/eventLogStore';
+import { useEventLogStore, type LogTab } from '../../stores/eventLogStore';
+import { useGraphStore } from '../../stores/graphStore';
 import { formatTimestamp, exportLogAsJson, exportLogAsCsv } from '../../utils/exportUtils';
 import type { MessageType } from '../../types';
+import { ACTOR_TYPE_ICONS } from '../../types';
 
 function getMessagePillStyle(messageType: MessageType): { bg: string; text: string } {
   if (messageType.startsWith('encounter-')) {
@@ -36,24 +38,30 @@ function getMessagePillStyle(messageType: MessageType): { bg: string; text: stri
   if (messageType.startsWith('direct-channel-')) {
     return { bg: 'var(--color-teal-light)', text: 'var(--color-teal)' };
   }
+  if (messageType.startsWith('idp-identity-')) {
+    return { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' };
+  }
   return { bg: 'var(--color-surface-alt)', text: 'var(--color-text-secondary)' };
 }
 
-const TABS = [
-  { id: 'log' as const, label: 'Event Log' },
-  { id: 'raw' as const, label: 'Raw Data' },
-  { id: 'metrics' as const, label: 'Metrics' },
+const TABS: { id: LogTab; label: string }[] = [
+  { id: 'events', label: 'Event Log' },
+  { id: 'messages', label: 'Message Log' },
+  { id: 'raw', label: 'Raw Data' },
+  { id: 'metrics', label: 'Metrics' },
 ];
 
 export default function EventLog() {
+  const events = useEventLogStore((s) => s.events);
   const entries = useEventLogStore((s) => s.entries);
   const filters = useEventLogStore((s) => s.filters);
   const activeTab = useEventLogStore((s) => s.activeTab);
   const isCollapsed = useEventLogStore((s) => s.isCollapsed);
-  const clearLog = useEventLogStore((s) => s.clearLog);
+  const clearAll = useEventLogStore((s) => s.clearAll);
   const setFilter = useEventLogStore((s) => s.setFilter);
   const setActiveTab = useEventLogStore((s) => s.setActiveTab);
   const setCollapsed = useEventLogStore((s) => s.setCollapsed);
+  const actors = useGraphStore((s) => s.actors);
 
   const [exportOpen, setExportOpen] = useState(false);
 
@@ -171,10 +179,10 @@ export default function EventLog() {
             )}
           </div>
           <button
-            onClick={clearLog}
+            onClick={clearAll}
             className="p-1 rounded hover:bg-[var(--color-danger-light)] text-[var(--color-text-tertiary)]
               hover:text-[var(--color-danger)] transition-colors"
-            title="Clear log"
+            title="Clear all logs"
           >
             <Trash2 size={12} />
           </button>
@@ -184,7 +192,56 @@ export default function EventLog() {
       {/* Content */}
       {!isCollapsed && (
         <div className="flex-1 overflow-auto">
-          {activeTab === 'log' && (
+          {activeTab === 'events' && (
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="bg-[var(--color-surface-alt)] text-[var(--color-text-tertiary)] sticky top-0">
+                  <th className="text-left px-2 py-1 font-medium w-8">#</th>
+                  <th className="text-left px-2 py-1 font-medium">Event Type</th>
+                  <th className="text-left px-2 py-1 font-medium">Source</th>
+                  <th className="text-left px-2 py-1 font-medium">Target</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((ev, i) => {
+                  const sourceActor = actors.get(ev.sourceActorId);
+                  const targetActor = ev.targetActorId ? actors.get(ev.targetActorId) : null;
+                  const icon = sourceActor ? ACTOR_TYPE_ICONS[sourceActor.type] : '';
+                  return (
+                    <tr
+                      key={ev.id}
+                      className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-alt)] transition-colors"
+                    >
+                      <td className="px-2 py-1 font-mono text-[var(--color-text-tertiary)]">{i + 1}</td>
+                      <td className="px-2 py-1">
+                        <span
+                          className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                          style={{ backgroundColor: 'var(--color-purple-light)', color: 'var(--color-purple)' }}
+                        >
+                          {ev.eventType}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1 text-[var(--color-text)]">
+                        {icon} {ev.sourceActorName}
+                      </td>
+                      <td className="px-2 py-1 text-[var(--color-text-tertiary)]">
+                        {targetActor ? targetActor.name : ev.targetActorName ?? '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {events.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-[var(--color-text-tertiary)]">
+                      No events yet. Trigger an event from the controls panel.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+
+          {activeTab === 'messages' && (
             <table className="w-full text-[11px]">
               <thead>
                 <tr className="bg-[var(--color-surface-alt)] text-[var(--color-text-tertiary)] sticky top-0">
@@ -239,7 +296,7 @@ export default function EventLog() {
                 {filteredEntries.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-4 py-6 text-center text-[var(--color-text-tertiary)]">
-                      No events yet. Trigger an event from the controls panel.
+                      No messages yet. Trigger an event to see message hops.
                     </td>
                   </tr>
                 )}

@@ -266,3 +266,34 @@ export function computeAllDirectChannels(graph: GraphState): DirectChannel[] {
 
   return channels;
 }
+
+export function findClientIdp(clientId: string, graph: GraphState): string | null {
+  const client = graph.actors.get(clientId);
+  if (!client || (client.type !== 'client-patient' && client.type !== 'client-delegated')) return null;
+  if (client.idpId) return client.idpId;
+  for (const edge of graph.edges.values()) {
+    if (edge.edgeType === 'identity') {
+      if (edge.sourceId === clientId) return edge.targetId;
+      if (edge.targetId === clientId) return edge.sourceId;
+    }
+  }
+  return null;
+}
+
+export function computeProviderIdpTrustEdges(
+  channels: DirectChannel[],
+  graph: GraphState,
+): TrustEdge[] {
+  const edges: TrustEdge[] = [];
+  const seen = new Set<string>();
+  for (const ch of channels) {
+    const idpId = findClientIdp(ch.clientId, graph);
+    if (!idpId) continue;
+    const key = `e-idp-trust-${ch.providerId}-${idpId}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      edges.push({ id: key, sourceId: ch.providerId, targetId: idpId, edgeType: 'trust' });
+    }
+  }
+  return edges;
+}
