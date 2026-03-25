@@ -27,7 +27,7 @@ export function TopBar() {
     if (preset) {
       useEventLogStore.getState().clearAll();
       useSimulationStore.getState().reset();
-      useGraphStore.getState().loadPreset(preset.actors, preset.edges);
+      useGraphStore.getState().loadPreset(preset.actors, preset.edges, preset.positions);
     }
     setPresetOpen(false);
   }

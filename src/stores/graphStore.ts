@@ -6,6 +6,7 @@ interface GraphStore {
   edges: Map<string, TrustEdge>;
   directChannels: Map<string, DirectChannel>;
   providerIdpEdges: Map<string, TrustEdge>;
+  positions: Record<string, { x: number; y: number }>;
   selectedActorId: string | null;
   linkMode: boolean;
   linkSource: string | null;
@@ -29,7 +30,8 @@ interface GraphStore {
   setLinkMode: (on: boolean) => void;
   setLinkSource: (id: string | null) => void;
 
-  loadPreset: (actors: Actor[], edges: TrustEdge[]) => void;
+  updatePosition: (id: string, pos: { x: number; y: number }) => void;
+  loadPreset: (actors: Actor[], edges: TrustEdge[], positions?: Record<string, { x: number; y: number }>) => void;
   clearGraph: () => void;
 }
 
@@ -38,6 +40,7 @@ export const useGraphStore = create<GraphStore>((set) => ({
   edges: new Map(),
   directChannels: new Map(),
   providerIdpEdges: new Map(),
+  positions: {},
   selectedActorId: null,
   linkMode: false,
   linkSource: null,
@@ -124,12 +127,18 @@ export const useGraphStore = create<GraphStore>((set) => ({
   setLinkMode: (on) => set({ linkMode: on, linkSource: null }),
   setLinkSource: (id) => set({ linkSource: id }),
 
-  loadPreset: (actors, edges) =>
+  updatePosition: (id, pos) =>
+    set((state) => ({
+      positions: { ...state.positions, [id]: pos },
+    })),
+
+  loadPreset: (actors, edges, positions) =>
     set({
       actors: new Map(actors.map((a) => [a.id, a])),
       edges: new Map(edges.map((e) => [e.id, e])),
       directChannels: new Map(),
       providerIdpEdges: new Map(),
+      positions: positions ?? {},
       selectedActorId: null,
       linkMode: false,
       linkSource: null,
@@ -141,6 +150,7 @@ export const useGraphStore = create<GraphStore>((set) => ({
       edges: new Map(),
       directChannels: new Map(),
       providerIdpEdges: new Map(),
+      positions: {},
       selectedActorId: null,
       linkMode: false,
       linkSource: null,

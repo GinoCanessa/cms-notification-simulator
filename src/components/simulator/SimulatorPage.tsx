@@ -14,22 +14,7 @@ export default function SimulatorPage() {
   // Load default preset if graph is empty
   useEffect(() => {
     if (actors.size === 0) {
-      loadPreset(simplePreset.actors, simplePreset.edges);
-      // Set preset positions after load
-      const setPositions = (window as unknown as Record<string, unknown>).__setGraphPositions as
-        | ((p: Record<string, { x: number; y: number }>) => void)
-        | undefined;
-      if (setPositions) {
-        setPositions(simplePreset.positions);
-      } else {
-        // Retry once after a tick to allow GraphCanvas to mount
-        requestAnimationFrame(() => {
-          const retry = (window as unknown as Record<string, unknown>).__setGraphPositions as
-            | ((p: Record<string, { x: number; y: number }>) => void)
-            | undefined;
-          if (retry) retry(simplePreset.positions);
-        });
-      }
+      loadPreset(simplePreset.actors, simplePreset.edges, simplePreset.positions);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -71,6 +71,8 @@ export default function GraphCanvas() {
   const edges = useGraphStore((s) => s.edges);
   const directChannels = useGraphStore((s) => s.directChannels);
   const providerIdpEdges = useGraphStore((s) => s.providerIdpEdges);
+  const positions = useGraphStore((s) => s.positions);
+  const updatePosition = useGraphStore((s) => s.updatePosition);
   const selectActor = useGraphStore((s) => s.selectActor);
   const addEdge = useGraphStore((s) => s.addEdge);
 
@@ -84,43 +86,18 @@ export default function GraphCanvas() {
   const selectEntry = useEventLogStore((s) => s.selectEntry);
   const selectEvent = useEventLogStore((s) => s.selectEvent);
 
-  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
-
-  // Sync positions when actors appear without positions (e.g. preset load or new actors)
+  // Assign random positions to actors that don't have one yet (e.g. manually added actors)
   useEffect(() => {
-    setPositions((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      for (const actor of actors.values()) {
-        if (!next[actor.id]) {
-          next[actor.id] = { x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 };
-          changed = true;
-        }
+    const store = useGraphStore.getState();
+    for (const actor of actors.values()) {
+      if (!store.positions[actor.id]) {
+        store.updatePosition(actor.id, {
+          x: Math.random() * 400 + 100,
+          y: Math.random() * 300 + 100,
+        });
       }
-      // Remove positions for actors that no longer exist
-      for (const id of Object.keys(next)) {
-        if (!actors.has(id)) {
-          delete next[id];
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
+    }
   }, [actors]);
-
-  /** Called by SimulatorPage / ControlsPanel to set preset positions */
-  // Expose via a stable setter so parent can initialize positions
-  const setPresetPositions = useCallback((p: Record<string, { x: number; y: number }>) => {
-    setPositions(p);
-  }, []);
-
-  // Attach to window for SimulatorPage to call
-  useEffect(() => {
-    (window as unknown as Record<string, unknown>).__setGraphPositions = setPresetPositions;
-    return () => {
-      delete (window as unknown as Record<string, unknown>).__setGraphPositions;
-    };
-  }, [setPresetPositions]);
 
   // Derive highlighted node/edge IDs from selected message log entry
   const selectedEntry = useMemo(() => {
@@ -246,20 +223,13 @@ export default function GraphCanvas() {
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      // Apply react-flow node changes (drag, select, etc.)
-      // We only care about position changes to persist in our state
       for (const change of changes) {
         if (change.type === 'position' && change.position) {
-          setPositions((prev) => ({
-            ...prev,
-            [change.id]: change.position!,
-          }));
+          updatePosition(change.id, change.position);
         }
       }
-      // We need to still let react-flow process changes for proper rendering
-      // Using applyNodeChanges through a dummy to keep controlled mode working
     },
-    [],
+    [updatePosition],
   );
 
   const onNodeClick = useCallback(
@@ -306,7 +276,6 @@ export default function GraphCanvas() {
     [actors, edges, addEdge],
   );
 
-  // We use controlled nodes via key remapping to force updates
   const nodesWithPositions = useMemo(() => {
     return flowNodes.map((n) => ({
       ...n,
