@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { SubHeader } from '../layout/SubHeader';
 import { useGraphStore } from '../../stores/graphStore';
-import { twoNetworksPreset } from '../../presets';
+import { simplePreset } from '../../presets';
 import GraphCanvas from './GraphCanvas';
 import ControlsPanel from './ControlsPanel';
 import ActorDetails from './ActorDetails';
@@ -14,20 +14,20 @@ export default function SimulatorPage() {
   // Load default preset if graph is empty
   useEffect(() => {
     if (actors.size === 0) {
-      loadPreset(twoNetworksPreset.actors, twoNetworksPreset.edges);
+      loadPreset(simplePreset.actors, simplePreset.edges);
       // Set preset positions after load
       const setPositions = (window as unknown as Record<string, unknown>).__setGraphPositions as
         | ((p: Record<string, { x: number; y: number }>) => void)
         | undefined;
       if (setPositions) {
-        setPositions(twoNetworksPreset.positions);
+        setPositions(simplePreset.positions);
       } else {
         // Retry once after a tick to allow GraphCanvas to mount
         requestAnimationFrame(() => {
           const retry = (window as unknown as Record<string, unknown>).__setGraphPositions as
             | ((p: Record<string, { x: number; y: number }>) => void)
             | undefined;
-          if (retry) retry(twoNetworksPreset.positions);
+          if (retry) retry(simplePreset.positions);
         });
       }
     }

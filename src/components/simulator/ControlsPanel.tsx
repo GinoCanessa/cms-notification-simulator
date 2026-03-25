@@ -231,6 +231,17 @@ export default function ControlsPanel() {
         timestamp: Date.now(),
       };
 
+      // For new-care-relationship in direct mode, remove the provider's
+      // pre-existing direct channels — they are established via the
+      // direct-channel-handshake flow during this event
+      if (forApproach === 'direct' && eventType === 'new-care-relationship') {
+        const filtered = Array.from(currentDC.values()).filter(
+          (ch) => ch.providerId !== sourceId,
+        );
+        setDirectChannels(filtered);
+        setProviderIdpEdges(computeProviderIdpTrustEdges(filtered, graph));
+      }
+
       if (recordEvent) {
         addEvent({
           id: event.id,
@@ -243,10 +254,13 @@ export default function ControlsPanel() {
         });
       }
 
+      // Re-read channels after potential removal
+      const { directChannels: activeDC } = useGraphStore.getState();
+
       const hops =
         forApproach === 'routed'
           ? computeRoutedFlow(event, graph)
-          : computeDirectFlow(event, graph, Array.from(currentDC.values()));
+          : computeDirectFlow(event, graph, Array.from(activeDC.values()));
 
       const entries = hops.map((hop, i) => ({
         id: hop.id,
@@ -275,17 +289,18 @@ export default function ControlsPanel() {
       setActiveHops(hops);
       setPendingHops([...hops]);
 
+      await runAnimation(hops);
+
+      // After animation, add any new direct channels established by this event
       if (forApproach === 'direct') {
         const newChannels = getNewDirectChannels(event, graph);
         newChannels.forEach((ch) => addDirectChannel(ch));
-        const allChannels = [...Array.from(currentDC.values()), ...newChannels];
-        const idpEdges = computeProviderIdpTrustEdges(allChannels, graph);
+        const { directChannels: updatedDC } = useGraphStore.getState();
+        const idpEdges = computeProviderIdpTrustEdges(Array.from(updatedDC.values()), graph);
         setProviderIdpEdges(idpEdges);
       }
-
-      await runAnimation(hops);
     },
-    [addEntries, addEvent, setActiveHops, setPendingHops, addDirectChannel, setProviderIdpEdges, runAnimation],
+    [addEntries, addEvent, setActiveHops, setPendingHops, addDirectChannel, setDirectChannels, setProviderIdpEdges, runAnimation],
   );
 
   const triggerEvent = useCallback(
@@ -310,7 +325,9 @@ export default function ControlsPanel() {
       const targetApproach = forApproach ?? useSimulationStore.getState().approach;
       resetMessageCounts();
       clearMessages();
-      syncDirectChannelsNow();
+      // Clear channels so they build up incrementally as events are replayed
+      clearDirectChannels();
+      clearProviderIdpEdges();
       setPlaying(true);
 
       for (const ev of events) {
@@ -323,7 +340,7 @@ export default function ControlsPanel() {
 
       setPlaying(false);
     },
-    [triggerEventForApproach, resetMessageCounts, clearMessages, syncDirectChannelsNow, setPlaying],
+    [triggerEventForApproach, resetMessageCounts, clearMessages, clearDirectChannels, clearProviderIdpEdges, setPlaying],
   );
 
   const handleAddActorSubmit = useCallback(() => {
