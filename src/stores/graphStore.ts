@@ -20,6 +20,7 @@ interface GraphStore {
   addDirectChannel: (channel: DirectChannel) => void;
   removeDirectChannel: (id: string) => void;
   clearDirectChannels: () => void;
+  setDirectChannels: (channels: DirectChannel[]) => void;
 
   setLinkMode: (on: boolean) => void;
   setLinkSource: (id: string | null) => void;
@@ -102,6 +103,11 @@ export const useGraphStore = create<GraphStore>((set) => ({
     }),
 
   clearDirectChannels: () => set({ directChannels: new Map() }),
+
+  setDirectChannels: (channels) =>
+    set({
+      directChannels: new Map(channels.map((c) => [c.id, c])),
+    }),
 
   setLinkMode: (on) => set({ linkMode: on, linkSource: null }),
   setLinkSource: (id) => set({ linkSource: id }),

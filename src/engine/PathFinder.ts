@@ -1,4 +1,4 @@
-import type { Actor, TrustEdge } from '../types';
+import type { Actor, TrustEdge, DirectChannel } from '../types';
 
 export interface GraphState {
   actors: Map<string, Actor>;
@@ -238,4 +238,31 @@ export function findEdgeBetween(
     }
   }
   return undefined;
+}
+
+export function computeAllDirectChannels(graph: GraphState): DirectChannel[] {
+  const channels: DirectChannel[] = [];
+  const now = Date.now();
+  const seen = new Set<string>();
+
+  for (const actor of graph.actors.values()) {
+    if (actor.type === 'provider') {
+      const paths = findReachableClients(actor.id, graph);
+      for (const path of paths) {
+        const clientId = path.actorIds[path.actorIds.length - 1];
+        const key = `dc-${actor.id}-${clientId}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          channels.push({
+            id: key,
+            providerId: actor.id,
+            clientId,
+            establishedAt: now,
+          });
+        }
+      }
+    }
+  }
+
+  return channels;
 }

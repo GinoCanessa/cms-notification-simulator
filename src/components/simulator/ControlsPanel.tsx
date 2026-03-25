@@ -25,6 +25,7 @@ import {
 } from '../../types';
 import { computeRoutedFlow } from '../../engine/RoutedEngine';
 import { computeDirectFlow, getNewDirectChannels } from '../../engine/DirectEngine';
+import { computeAllDirectChannels } from '../../engine/PathFinder';
 
 interface AddActorForm {
   type: ActorType;
@@ -73,13 +74,14 @@ function CollapsibleSection({
 export default function ControlsPanel() {
   const actors = useGraphStore((s) => s.actors);
   const edges = useGraphStore((s) => s.edges);
-  const directChannels = useGraphStore((s) => s.directChannels);
   const selectedActorId = useGraphStore((s) => s.selectedActorId);
   const selectActor = useGraphStore((s) => s.selectActor);
   const addActor = useGraphStore((s) => s.addActor);
   const removeActor = useGraphStore((s) => s.removeActor);
+  const addEdge = useGraphStore((s) => s.addEdge);
   const addDirectChannel = useGraphStore((s) => s.addDirectChannel);
   const clearDirectChannels = useGraphStore((s) => s.clearDirectChannels);
+  const setDirectChannels = useGraphStore((s) => s.setDirectChannels);
 
   const approach = useSimulationStore((s) => s.approach);
   const speed = useSimulationStore((s) => s.speed);
@@ -113,10 +115,28 @@ export default function ControlsPanel() {
   const networks = useMemo(() => actorList.filter((a) => a.type === 'network'), [actorList]);
   const sourceActor = actors.get(eventSource) ?? null;
 
-  // Find the edge between two actors (trust or direct channel)
+  // Sync direct channels: present in Direct mode, absent in Routed mode
+  const syncDirectChannelsNow = useCallback(() => {
+    const currentApproach = useSimulationStore.getState().approach;
+    const { actors: a, edges: e } = useGraphStore.getState();
+    if (currentApproach === 'direct') {
+      const channels = computeAllDirectChannels({ actors: a, edges: e });
+      setDirectChannels(channels);
+    } else {
+      clearDirectChannels();
+    }
+  }, [setDirectChannels, clearDirectChannels]);
+
+  // Automatically sync direct channels when approach or graph topology changes
+  useEffect(() => {
+    syncDirectChannelsNow();
+  }, [approach, actors, edges, syncDirectChannelsNow]);
+
+  // Find the edge between two actors (reads fresh state to work during animations)
   const findEdgeId = useCallback(
     (fromId: string, toId: string): string | null => {
-      for (const edge of edges.values()) {
+      const { edges: currentEdges, directChannels: currentDC } = useGraphStore.getState();
+      for (const edge of currentEdges.values()) {
         if (
           (edge.sourceId === fromId && edge.targetId === toId) ||
           (edge.sourceId === toId && edge.targetId === fromId)
@@ -124,7 +144,7 @@ export default function ControlsPanel() {
           return edge.id;
         }
       }
-      for (const dc of directChannels.values()) {
+      for (const dc of currentDC.values()) {
         if (
           (dc.providerId === fromId && dc.clientId === toId) ||
           (dc.providerId === toId && dc.clientId === fromId)
@@ -134,7 +154,7 @@ export default function ControlsPanel() {
       }
       return null;
     },
-    [edges, directChannels],
+    [],
   );
 
   const runAnimation = useCallback(
@@ -188,7 +208,8 @@ export default function ControlsPanel() {
 
   const triggerEventForApproach = useCallback(
     async (eventType: EventType, sourceId: string, forApproach: 'routed' | 'direct', targetId?: string) => {
-      const graph = { actors, edges };
+      const { actors: currentActors, edges: currentEdges, directChannels: currentDC } = useGraphStore.getState();
+      const graph = { actors: currentActors, edges: currentEdges };
       const event = {
         id: `evt-${Date.now()}`,
         type: eventType,
@@ -203,7 +224,7 @@ export default function ControlsPanel() {
       const hops =
         forApproach === 'routed'
           ? computeRoutedFlow(event, graph)
-          : computeDirectFlow(event, graph, Array.from(directChannels.values()));
+          : computeDirectFlow(event, graph, Array.from(currentDC.values()));
 
       const entries = hops.map((hop, i) => ({
         id: hop.id,
@@ -214,13 +235,13 @@ export default function ControlsPanel() {
         step: hop.step,
         from: {
           id: hop.fromId,
-          type: actors.get(hop.fromId)?.type || '',
-          name: actors.get(hop.fromId)?.name || hop.fromId,
+          type: currentActors.get(hop.fromId)?.type || '',
+          name: currentActors.get(hop.fromId)?.name || hop.fromId,
         },
         to: {
           id: hop.toId,
-          type: actors.get(hop.toId)?.type || '',
-          name: actors.get(hop.toId)?.name || hop.toId,
+          type: currentActors.get(hop.toId)?.type || '',
+          name: currentActors.get(hop.toId)?.name || hop.toId,
         },
         channel: hop.channel,
         messageType: hop.messageType,
@@ -239,7 +260,7 @@ export default function ControlsPanel() {
 
       await runAnimation(hops);
     },
-    [actors, edges, directChannels, addEntries, setActiveHops, setPendingHops, addDirectChannel, runAnimation, resetMessageCounts],
+    [addEntries, setActiveHops, setPendingHops, addDirectChannel, runAnimation, resetMessageCounts],
   );
 
   const triggerEvent = useCallback(
@@ -258,15 +279,36 @@ export default function ControlsPanel() {
       name: addForm.name.trim(),
       type: addForm.type,
     };
-    if (
+    const hasNetwork =
       (addForm.type === 'client-patient' || addForm.type === 'client-delegated' || addForm.type === 'provider') &&
-      addForm.networkId
-    ) {
+      addForm.networkId;
+    if (hasNetwork) {
       actor.networkId = addForm.networkId;
     }
     addActor(actor);
+
+    // Auto-create trust edge to the selected network
+    if (hasNetwork) {
+      addEdge({
+        id: `e-${id}-${addForm.networkId}`,
+        sourceId: id,
+        targetId: addForm.networkId,
+        edgeType: 'trust',
+      });
+    }
     setAddForm(null);
-  }, [addForm, addActor]);
+
+    // Trigger event to establish relationships via existing channels
+    if (hasNetwork && !isPlaying) {
+      syncDirectChannelsNow();
+      const currentApproach = useSimulationStore.getState().approach;
+      if (actor.type === 'provider') {
+        triggerEventForApproach('new-care-relationship', id, currentApproach);
+      } else if (actor.type === 'client-patient' || actor.type === 'client-delegated') {
+        triggerEventForApproach('new-client-registration', id, currentApproach);
+      }
+    }
+  }, [addForm, addActor, addEdge, isPlaying, syncDirectChannelsNow, triggerEventForApproach]);
 
   const needsNetwork = addForm
     ? ['client-patient', 'client-delegated', 'provider'].includes(addForm.type)
@@ -322,6 +364,7 @@ export default function ControlsPanel() {
       if (compareAbortRef.current || !useSimulationStore.getState().compare.active) return;
 
       setApproach(currentApproach);
+      syncDirectChannelsNow();
       setCompare({ currentApproach });
 
       await triggerEventForApproach(
@@ -339,7 +382,7 @@ export default function ControlsPanel() {
     }, pauseMs);
 
     return () => clearTimeout(timer);
-  }, [compare.active, compare.eventType, compare.sourceId, compare.targetId, compare.currentApproach, isPlaying, setApproach, setCompare, triggerEventForApproach]);
+  }, [compare.active, compare.eventType, compare.sourceId, compare.targetId, compare.currentApproach, isPlaying, setApproach, setCompare, triggerEventForApproach, syncDirectChannelsNow]);
 
   const hasSource = !!eventSource && !!actors.get(eventSource);
   const canCompare = hasSource && (actors.get(eventSource)?.type !== 'network' || !!networkTarget);
@@ -565,11 +608,6 @@ export default function ControlsPanel() {
                   />
                 </>
               )}
-              <EventButton
-                label="New Provider Registration"
-                disabled={isPlaying || sourceActor.type !== 'provider'}
-                onClick={() => triggerEvent('new-provider-registration', eventSource)}
-              />
             </div>
           )}
         </div>
@@ -609,7 +647,7 @@ export default function ControlsPanel() {
           </div>
 
           <button
-            onClick={() => { stopCompareLoop(); simulationReset(); clearLog(); clearDirectChannels(); }}
+            onClick={() => { stopCompareLoop(); simulationReset(); clearLog(); }}
             disabled={isPlaying}
             className={`w-full flex items-center justify-center gap-1.5 text-xs px-2 py-1.5 rounded
               border transition-colors ${
