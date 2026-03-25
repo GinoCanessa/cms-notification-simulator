@@ -6,6 +6,7 @@ import { ACTOR_TYPE_LABELS, ACTOR_TYPE_COLORS, ACTOR_TYPE_ICONS } from '../../ty
 export default function ActorDetails() {
   const actors = useGraphStore((s) => s.actors);
   const edges = useGraphStore((s) => s.edges);
+  const providerIdpEdges = useGraphStore((s) => s.providerIdpEdges);
   const directChannels = useGraphStore((s) => s.directChannels);
   const selectedActorId = useGraphStore((s) => s.selectedActorId);
   const removeActor = useGraphStore((s) => s.removeActor);
@@ -26,6 +27,18 @@ export default function ActorDetails() {
       }
     }
 
+    for (const edge of providerIdpEdges.values()) {
+      if (edge.sourceId === actor.id) {
+        const target = actors.get(edge.targetId);
+        if (target && !connected.some((c) => c.id === target.id))
+          connected.push({ id: target.id, name: target.name, type: target.type, via: edge.edgeType });
+      } else if (edge.targetId === actor.id) {
+        const source = actors.get(edge.sourceId);
+        if (source && !connected.some((c) => c.id === source.id))
+          connected.push({ id: source.id, name: source.name, type: source.type, via: edge.edgeType });
+      }
+    }
+
     for (const dc of directChannels.values()) {
       if (dc.providerId === actor.id) {
         const client = actors.get(dc.clientId);
@@ -39,7 +52,7 @@ export default function ActorDetails() {
     }
 
     return connected;
-  }, [actor, actors, edges, directChannels]);
+  }, [actor, actors, edges, providerIdpEdges, directChannels]);
 
   const stats = useMemo(() => {
     if (!actor) return [];

@@ -114,16 +114,6 @@ function HexagonShape({ color }: { color: string }) {
 
 /* ─── Data ──────────────────────────────────────────────────────────── */
 
-const comparisonRows = [
-  { aspect: 'Encounter latency', routed: 'Higher (multi-hop)', direct: 'Low (direct)' },
-  { aspect: 'Discovery latency', routed: 'Multi-hop', direct: 'Multi-hop (same)' },
-  { aspect: 'Network load', routed: 'High (all traffic)', direct: 'Low (discovery only)' },
-  { aspect: 'Endpoint complexity', routed: 'Simple', direct: 'Complex' },
-  { aspect: 'Connection count', routed: 'O(N + E)', direct: 'O(P × C)' },
-  { aspect: 'Failure impact', routed: 'Network failure severs traffic', direct: 'Only blocks discovery' },
-  { aspect: 'Privacy', routed: 'Strong (mediated)', direct: 'Weaker (direct)' },
-];
-
 const actors: {
   name: string;
   description: string;
@@ -216,16 +206,6 @@ export default function OverviewPage() {
                 Networks relay messages hop-by-hop, providing mediated access control but adding
                 latency.
               </p>
-              <ul className="text-sm space-y-1">
-                <li className="text-green-600 dark:text-green-400">✅ Strong privacy (mediated)</li>
-                <li className="text-green-600 dark:text-green-400">✅ Simple endpoint management</li>
-                <li className="text-green-600 dark:text-green-400">✅ Centralized access control</li>
-              </ul>
-              <ul className="text-sm space-y-1">
-                <li className="text-amber-600 dark:text-amber-400">⚠️ Higher latency (multi-hop)</li>
-                <li className="text-amber-600 dark:text-amber-400">⚠️ Network bottlenecks</li>
-                <li className="text-amber-600 dark:text-amber-400">⚠️ Single point of failure</li>
-              </ul>
               <Link
                 to="/simulator?approach=routed"
                 className="mt-auto inline-flex items-center justify-center gap-1 rounded px-6 py-2 text-sm font-medium text-white no-underline transition-colors"
@@ -252,16 +232,6 @@ export default function OverviewPage() {
                 After initial discovery through the trust graph, providers and clients establish
                 direct communication channels. Subsequent data flows bypass intermediary networks.
               </p>
-              <ul className="text-sm space-y-1">
-                <li className="text-green-600 dark:text-green-400">✅ Low latency (direct)</li>
-                <li className="text-green-600 dark:text-green-400">✅ Reduced network load</li>
-                <li className="text-green-600 dark:text-green-400">✅ Resilient to network failures</li>
-              </ul>
-              <ul className="text-sm space-y-1">
-                <li className="text-amber-600 dark:text-amber-400">⚠️ Complex connection management</li>
-                <li className="text-amber-600 dark:text-amber-400">⚠️ O(P×C) connections</li>
-                <li className="text-amber-600 dark:text-amber-400">⚠️ Weaker privacy</li>
-              </ul>
               <Link
                 to="/simulator?approach=direct"
                 className="mt-auto inline-flex items-center justify-center gap-1 rounded px-6 py-2 text-sm font-medium text-white no-underline transition-colors"
@@ -270,53 +240,6 @@ export default function OverviewPage() {
                 Try Direct →
               </Link>
             </div>
-          </div>
-        </section>
-
-        {/* ── Comparison Table ────────────────────────────────── */}
-        <section>
-          <h2 className="text-xl font-semibold text-[var(--color-text)] mb-5">
-            Side-by-Side Comparison
-          </h2>
-          <div
-            className="rounded-lg overflow-hidden"
-            style={{
-              border: '1px solid var(--color-border)',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ background: 'var(--color-surface-alt)' }}>
-                  <th className="text-left px-4 py-3 font-semibold text-[var(--color-text)]">
-                    Aspect
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-[var(--color-text)]">
-                    Routed
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-[var(--color-text)]">
-                    Direct
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonRows.map((row, i) => (
-                  <tr
-                    key={row.aspect}
-                    style={{
-                      background: i % 2 === 0 ? 'var(--color-surface)' : 'var(--color-surface-alt)',
-                      borderTop: '1px solid var(--color-border)',
-                    }}
-                  >
-                    <td className="px-4 py-3 font-medium text-[var(--color-text)]">
-                      {row.aspect}
-                    </td>
-                    <td className="px-4 py-3 text-[var(--color-text-secondary)]">{row.routed}</td>
-                    <td className="px-4 py-3 text-[var(--color-text-secondary)]">{row.direct}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         </section>
 
