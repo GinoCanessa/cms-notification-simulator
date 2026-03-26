@@ -177,8 +177,48 @@ export const complexPreset: Preset = {
   },
 };
 
+export const multiClientPreset: Preset = {
+  id: 'multi-client',
+  name: 'Multi-client',
+  actors: [
+    { id: 'idp-1', name: 'CMS IDP', type: 'idp' },
+    { id: 'network-a', name: 'Network East', type: 'network' },
+    { id: 'provider-1', name: 'Dr. Smith', type: 'provider', networkId: 'network-a' },
+    { id: 'client-1', name: 'Patient Health App', type: 'client-patient', networkId: 'network-a', idpId: 'idp-1' },
+    { id: 'client-2', name: 'My Care Record', type: 'client-patient', networkId: 'network-a', idpId: 'idp-1' },
+    { id: 'client-3', name: 'Care Companion', type: 'client-patient', networkId: 'network-a', idpId: 'idp-1' },
+    { id: 'client-4', name: 'Health Tracker', type: 'client-patient', networkId: 'network-a', idpId: 'idp-1' },
+    { id: 'client-5', name: 'Wellness Monitor', type: 'client-patient', networkId: 'network-a', idpId: 'idp-1' },
+  ],
+  edges: [
+    { id: 'e-p1-na', sourceId: 'provider-1', targetId: 'network-a', edgeType: 'trust' },
+    { id: 'e-na-c1', sourceId: 'network-a', targetId: 'client-1', edgeType: 'trust' },
+    { id: 'e-na-c2', sourceId: 'network-a', targetId: 'client-2', edgeType: 'trust' },
+    { id: 'e-na-c3', sourceId: 'network-a', targetId: 'client-3', edgeType: 'trust' },
+    { id: 'e-na-c4', sourceId: 'network-a', targetId: 'client-4', edgeType: 'trust' },
+    { id: 'e-na-c5', sourceId: 'network-a', targetId: 'client-5', edgeType: 'trust' },
+    { id: 'e-c1-idp', sourceId: 'client-1', targetId: 'idp-1', edgeType: 'identity' },
+    { id: 'e-c2-idp', sourceId: 'client-2', targetId: 'idp-1', edgeType: 'identity' },
+    { id: 'e-c3-idp', sourceId: 'client-3', targetId: 'idp-1', edgeType: 'identity' },
+    { id: 'e-c4-idp', sourceId: 'client-4', targetId: 'idp-1', edgeType: 'identity' },
+    { id: 'e-c5-idp', sourceId: 'client-5', targetId: 'idp-1', edgeType: 'identity' },
+    { id: 'e-idp1-na', sourceId: 'idp-1', targetId: 'network-a', edgeType: 'trust' },
+  ],
+  positions: {
+    'provider-1': { x: 100, y: 310 },
+    'network-a': { x: 350, y: 310 },
+    'idp-1': { x: 600, y: 50 },
+    'client-1': { x: 600, y: 130 },
+    'client-2': { x: 600, y: 220 },
+    'client-3': { x: 600, y: 310 },
+    'client-4': { x: 600, y: 400 },
+    'client-5': { x: 600, y: 490 },
+  },
+};
+
 export const allPresets: Preset[] = [
   simplePreset,
+  multiClientPreset,
   twoNetworksPreset,
   hubAndSpokePreset,
   complexPreset,
