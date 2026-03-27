@@ -35,13 +35,14 @@ export const twoNetworksPreset: Preset = {
   id: 'two-networks',
   name: 'Two Networks',
   actors: [
-    { id: 'idp-1', name: 'CMS IDP', type: 'idp' },
+    { id: 'idp-1', name: 'IDP East', type: 'idp' },
+    { id: 'idp-2', name: 'IDP West', type: 'idp' },
     { id: 'network-a', name: 'Network East', type: 'network' },
     { id: 'network-b', name: 'Network West', type: 'network' },
     { id: 'provider-1', name: 'Dr. Smith', type: 'provider', networkId: 'network-a' },
     { id: 'provider-2', name: 'City Hospital', type: 'provider', networkId: 'network-a' },
-    { id: 'client-1', name: 'Patient Health App', type: 'client-patient', networkId: 'network-b', idpId: 'idp-1' },
-    { id: 'client-2', name: 'My Care Record', type: 'client-patient', networkId: 'network-b', idpId: 'idp-1' },
+    { id: 'client-1', name: 'Patient Health App', type: 'client-patient', networkId: 'network-b', idpId: 'idp-2' },
+    { id: 'client-2', name: 'My Care Record', type: 'client-patient', networkId: 'network-b', idpId: 'idp-2' },
   ],
   edges: [
     { id: 'e-p1-na', sourceId: 'provider-1', targetId: 'network-a', edgeType: 'trust' },
@@ -49,9 +50,10 @@ export const twoNetworksPreset: Preset = {
     { id: 'e-na-nb', sourceId: 'network-a', targetId: 'network-b', edgeType: 'trust' },
     { id: 'e-nb-c1', sourceId: 'network-b', targetId: 'client-1', edgeType: 'trust' },
     { id: 'e-nb-c2', sourceId: 'network-b', targetId: 'client-2', edgeType: 'trust' },
-    { id: 'e-c1-idp', sourceId: 'client-1', targetId: 'idp-1', edgeType: 'identity' },
-    { id: 'e-c2-idp', sourceId: 'client-2', targetId: 'idp-1', edgeType: 'identity' },
-    { id: 'e-idp1-nb', sourceId: 'idp-1', targetId: 'network-b', edgeType: 'trust' },
+    { id: 'e-c1-idp', sourceId: 'client-1', targetId: 'idp-2', edgeType: 'identity' },
+    { id: 'e-c2-idp', sourceId: 'client-2', targetId: 'idp-2', edgeType: 'identity' },
+    { id: 'e-idp1-na', sourceId: 'idp-1', targetId: 'network-a', edgeType: 'trust' },
+    { id: 'e-idp2-nb', sourceId: 'idp-2', targetId: 'network-b', edgeType: 'trust' },
   ],
   positions: {
     'provider-1': { x: 80, y: 150 },
@@ -60,7 +62,8 @@ export const twoNetworksPreset: Preset = {
     'network-b': { x: 520, y: 250 },
     'client-1': { x: 740, y: 150 },
     'client-2': { x: 740, y: 350 },
-    'idp-1': { x: 740, y: 30 },
+    'idp-1': { x: 300, y: 50 },
+    'idp-2': { x: 740, y: 50 },
   },
 };
 
